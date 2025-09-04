@@ -109,7 +109,7 @@ public class TwoFactorService {
         String redisKey = REDIS_2FA_PREFIX + usuarioId;
         
         return redisTemplate.delete(redisKey)
-            .then(Mono.fromRunnable(() -> 
+            .then(Mono.<Void>fromRunnable(() -> 
                 logger.info("2FA desabilitado com sucesso para usuário: {}", usuarioId)))
             .onErrorResume(throwable -> {
                 logger.error("Erro ao desabilitar 2FA para usuário: {}", usuarioId, throwable);
@@ -125,5 +125,25 @@ public class TwoFactorService {
     private String maskCode(String code) {
         if (code.length() < 6) return "****";
         return code.substring(0, 2) + "****";
+    }
+    
+    // Methods required by controllers
+    public Mono<Resposta2FADTO> generateCode(Long userId, String channel) {
+        return gerarCodigo(userId.toString(), channel);
+    }
+    
+    public Mono<Boolean> verifyCode(Long userId, String code, String channel) {
+        return verificarCodigo(userId.toString(), code);
+    }
+    
+    public Mono<Void> disable(Long userId) {
+        return desabilitar2FA(userId.toString());
+    }
+    
+    public Mono<String> cachePing() {
+        return redisTemplate.opsForValue()
+            .set("ping:2fa", "pong", Duration.ofSeconds(5))
+            .then(redisTemplate.opsForValue().get("ping:2fa"))
+            .defaultIfEmpty("TIMEOUT");
     }
 }

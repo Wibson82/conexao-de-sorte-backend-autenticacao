@@ -30,7 +30,7 @@ public class TwoFactorController {
     @PreAuthorize("hasAnyRole('USER','ADMIN')")
     public Mono<ResponseEntity<Resposta2FAGeradoDTO>> generate(@Valid @RequestBody RequisicaoGerar2FADTO req) {
         return twoFactorService.generateCode(req.usuarioId(), req.canal())
-                .map(r -> ResponseEntity.ok(Resposta2FAGeradoDTO.of(r.maskedCode(), r.ttlSeconds())));
+                .map(r -> ResponseEntity.ok(Resposta2FAGeradoDTO.of(r.codigoMasked(), r.ttlSegundos())));
     }
 
     @PostMapping(value = "/verify", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
@@ -38,7 +38,7 @@ public class TwoFactorController {
     @PreAuthorize("hasAnyRole('USER','ADMIN')")
     public Mono<ResponseEntity<RespostaOkDTO>> verify(@Valid @RequestBody RequisicaoValidar2FADTO req) {
         return twoFactorService.verifyCode(req.usuarioId(), req.canal(), req.codigo())
-                .map(ok -> ResponseEntity.ok(ok ? RespostaOkDTO.ok() : RespostaOkDTO.fail()));
+                .map(ok -> ResponseEntity.ok(ok ? RespostaOkDTO.sucesso() : RespostaOkDTO.falha()));
     }
 
     @PostMapping(value = "/disable/{usuarioId}", produces = MediaType.APPLICATION_JSON_VALUE)
@@ -46,7 +46,7 @@ public class TwoFactorController {
     @PreAuthorize("hasRole('ADMIN') or #usuarioId != null")
     public Mono<ResponseEntity<RespostaOkDTO>> disable(@PathVariable Long usuarioId) {
         return twoFactorService.disable(usuarioId)
-                .map(ok -> ResponseEntity.ok(RespostaOkDTO.ok()));
+                .map(v -> ResponseEntity.ok(RespostaOkDTO.sucesso()));
     }
 }
 

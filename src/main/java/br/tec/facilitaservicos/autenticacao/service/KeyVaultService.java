@@ -431,4 +431,37 @@ public class KeyVaultService {
             throw new Exception("Erro ao fazer parse da chave pública: " + e.getMessage(), e);
         }
     }
+    
+    /**
+     * Método para obter secret genérico do Key Vault.
+     */
+    public Mono<String> getSecret(String secretName) {
+        logger.debug("Obtendo secret: {}", secretName);
+        
+        if (!keyVaultEnabled || secretClient == null) {
+            logger.warn("Azure Key Vault não disponível, retornando fallback para: {}", secretName);
+            return Mono.just("fallback-" + secretName);
+        }
+        
+        return Mono.fromCallable(() -> {
+            try {
+                if (secretName == null || secretName.trim().isEmpty()) {
+                    throw new KeyVaultException("Nome do secret não pode ser vazio");
+                }
+                
+                KeyVaultSecret secret = secretClient.getSecret(secretName.trim());
+                
+                if (secret == null || secret.getValue() == null) {
+                    throw new KeyVaultException("Secret não encontrado: " + secretName);
+                }
+                
+                return secret.getValue();
+            } catch (Exception e) {
+                logger.error("Erro ao obter secret {}: {}", secretName, e.getMessage());
+                throw new KeyVaultException("Falha ao obter secret: " + secretName, e);
+            }
+        })
+        .subscribeOn(Schedulers.boundedElastic())
+        .onErrorReturn("fallback-" + secretName);
+    }
 }

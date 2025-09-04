@@ -49,7 +49,7 @@ public class AuthDiagnosticsController {
         Mono<Boolean> db = userServiceClient.countUsuariosAtivos().map(cnt -> cnt >= 0).onErrorReturn(false);
         Mono<Boolean> kvPub = keyVaultService.getPublicKey().map(k -> k != null).onErrorReturn(false);
         Mono<Boolean> kvPriv = keyVaultService.getPrivateKey().map(k -> k != null).onErrorReturn(false);
-        Mono<Boolean> cache = twoFactorService.cachePing().onErrorReturn(false);
+        Mono<Boolean> cache = twoFactorService.cachePing().map(resp -> "pong".equals(resp)).onErrorReturn(false);
 
         return Mono.zip(db, kvPub, kvPriv, cache)
                 .map(tuple -> {
