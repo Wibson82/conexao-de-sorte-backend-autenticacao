@@ -1,28 +1,46 @@
-package br.tec.facilitaservicos.autenticacao.config;
+package br.tec.facilitaservicos.usuario.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity;
+import org.springframework.core.convert.converter.Converter;
 import org.springframework.security.config.annotation.method.configuration.EnableReactiveMethodSecurity;
+import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity;
 import org.springframework.security.config.web.server.ServerHttpSecurity;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
+import org.springframework.security.oauth2.server.resource.authentication.ReactiveJwtAuthenticationConverterAdapter;
 import org.springframework.security.web.server.SecurityWebFilterChain;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.reactive.CorsConfigurationSource;
 import org.springframework.web.cors.reactive.UrlBasedCorsConfigurationSource;
 
+import java.util.Collection;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
- * Configuração de segurança reativa para WebFlux.
- * Define políticas de segurança e CORS para o microserviço.
+ * ============================================================================
+ * 🔐 CONFIGURAÇÃO DE SEGURANÇA REATIVA - MICROSERVIÇO USUARIO
+ * ============================================================================
+ * 
+ * Configuração de segurança baseada no microserviço de autenticação:
+ * - Validação JWT via JWKS do microserviço de autenticação
+ * - Controle de acesso para endpoints de usuário
+ * - CORS configurado dinamicamente
+ * - Headers de segurança para proteção de dados pessoais
+ * - Compliance GDPR/LGPD
+ * 
+ * @author Sistema de Padronização OIDC
+ * @version 1.0
+ * @since 2024
  */
 @Configuration
 @EnableWebFluxSecurity
 @EnableReactiveMethodSecurity
 public class SecurityConfig {
-    
+
     /**
      * Configuração da cadeia de filtros de segurança.
      */
@@ -31,14 +49,19 @@ public class SecurityConfig {
         return http
             .csrf(csrf -> csrf.disable())
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+            
+            // Configuração OAuth2 Resource Server para validação JWT
+            .oauth2ResourceServer(oauth2 -> oauth2
+                .jwt(jwt -> jwt
+                    .jwtAuthenticationConverter(jwtAuthenticationConverter())
+                )
+            )
+            
             .authorizeExchange(exchanges -> exchanges
-                // Endpoints públicos - incluindo health checks para load balancer
+                // Endpoints públicos - health checks para load balancer
                 .pathMatchers(
-                    "/auth/**",
-                    "/.well-known/**", 
-                    "/oauth2/jwks**",
                     "/actuator/health**",
-                    "/actuator/health/liveness**",
+                    "/actuator/health/liveness**", 
                     "/actuator/health/readiness**",
                     "/actuator/info",
                     "/actuator/prometheus",
@@ -47,20 +70,34 @@ public class SecurityConfig {
                     "/swagger-resources/**",
                     "/webjars/**"
                 ).permitAll()
+                
                 // Endpoints do Actuator sensíveis (requer autenticação)
                 .pathMatchers("/actuator/metrics/**", "/actuator/env**", "/actuator/configprops**").authenticated()
+                
                 // Outros endpoints do actuator são públicos para monitoramento
                 .pathMatchers("/actuator/**").permitAll()
-                // Outros endpoints requerem autenticação
+                
+                // Endpoint de registro de usuário (público)
+                .pathMatchers("/rest/v1/usuarios/registro").permitAll()
+                
+                // Todos os outros endpoints de usuário requerem autenticação
                 .anyExchange().authenticated()
             )
-            .httpBasic(httpBasic -> httpBasic.disable())
-            .formLogin(formLogin -> formLogin.disable())
             .build();
     }
-    
+
     /**
-     * Configuração de CORS.
+     * Conversor de JWT para authorities do Spring Security
+     */
+    @Bean
+    public ReactiveJwtAuthenticationConverterAdapter jwtAuthenticationConverter() {
+        JwtAuthenticationConverter converter = new JwtAuthenticationConverter();
+        converter.setJwtGrantedAuthoritiesConverter(new CustomJwtGrantedAuthoritiesConverter());
+        return new ReactiveJwtAuthenticationConverterAdapter(converter);
+    }
+
+    /**
+     * Configuração de CORS baseada no padrão do microserviço de autenticação
      */
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
@@ -87,7 +124,7 @@ public class SecurityConfig {
         // Headers permitidos
         configuration.setAllowedHeaders(List.of(
             "Authorization",
-            "Content-Type",
+            "Content-Type", 
             "X-Requested-With",
             "Accept",
             "Origin",
@@ -112,15 +149,28 @@ public class SecurityConfig {
         
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
-        
         return source;
     }
-    
+
     /**
-     * Encoder de senha usando BCrypt.
+     * Conversor customizado para extrair authorities do JWT
      */
-    @Bean
-    public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder(12);
+    public static class CustomJwtGrantedAuthoritiesConverter implements Converter<Jwt, Collection<GrantedAuthority>> {
+        
+        @Override
+        public Collection<GrantedAuthority> convert(Jwt jwt) {
+            // Extrair roles do claim 'authorities' ou 'roles'
+            Collection<String> authorities = jwt.getClaimAsStringList("authorities");
+            if (authorities == null || authorities.isEmpty()) {
+                authorities = jwt.getClaimAsStringList("roles");
+            }
+            if (authorities == null) {
+                authorities = List.of("USER"); // Role padrão
+            }
+            
+            return authorities.stream()
+                .map(authority -> new SimpleGrantedAuthority("ROLE_" + authority.toUpperCase()))
+                .collect(Collectors.toList());
+        }
     }
 }

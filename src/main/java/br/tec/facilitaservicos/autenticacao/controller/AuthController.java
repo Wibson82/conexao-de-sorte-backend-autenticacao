@@ -9,6 +9,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -20,7 +21,14 @@ import br.tec.facilitaservicos.autenticacao.dto.RequisicaoLoginDTO;
 import br.tec.facilitaservicos.autenticacao.dto.RequisicaoRefreshDTO;
 import br.tec.facilitaservicos.autenticacao.dto.RespostaIntrospeccaoDTO;
 import br.tec.facilitaservicos.autenticacao.dto.RespostaTokenDTO;
+import br.tec.facilitaservicos.autenticacao.dto.Requisicao2FADTO;
+import br.tec.facilitaservicos.autenticacao.dto.Resposta2FADTO;
+import br.tec.facilitaservicos.autenticacao.dto.Verificacao2FADTO;
+import br.tec.facilitaservicos.autenticacao.dto.DiagnosticoUsuarioDTO;
+import br.tec.facilitaservicos.autenticacao.dto.DiagnosticoHealthDTO;
 import br.tec.facilitaservicos.autenticacao.service.AuthService;
+import br.tec.facilitaservicos.autenticacao.service.TwoFactorService;
+import br.tec.facilitaservicos.autenticacao.service.DiagnosticoService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -29,6 +37,9 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import reactor.core.publisher.Mono;
+
+import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * ============================================================================
@@ -114,9 +125,15 @@ public class AuthController {
     private static final String COMMA_SEPARATOR = ",";
 
     private final AuthService authService;
+    private final TwoFactorService twoFactorService;
+    private final DiagnosticoService diagnosticoService;
     
-    public AuthController(AuthService authService) {
+    public AuthController(AuthService authService, 
+                         TwoFactorService twoFactorService,
+                         DiagnosticoService diagnosticoService) {
         this.authService = authService;
+        this.twoFactorService = twoFactorService;
+        this.diagnosticoService = diagnosticoService;
     }
 
     /**
@@ -486,6 +503,188 @@ public class AuthController {
                 errorResponse.put(JSON_KEY_SERVICE, SERVICE_NAME);
                 errorResponse.put(JSON_KEY_TIMESTAMP, System.currentTimeMillis());
                 return Mono.just(ResponseEntity.status(503).body(errorResponse));
+            });
+    }
+    
+    // ============================================================================
+    // 🔐 ENDPOINTS DE AUTENTICAÇÃO DOIS FATORES (2FA)
+    // ============================================================================
+    
+    /**
+     * 📱 Gerar código 2FA para usuário.
+     */
+    @PostMapping(value = "/2fa/generate",
+                 consumes = MediaType.APPLICATION_JSON_VALUE,
+                 produces = MediaType.APPLICATION_JSON_VALUE)
+    @Operation(
+        summary = "Gerar código 2FA",
+        description = "Gera código de dois fatores para usuário"
+    )
+    @ApiResponses(value = {
+        @ApiResponse(
+            responseCode = "200",
+            description = "Código gerado com sucesso",
+            content = @Content(schema = @Schema(implementation = Resposta2FADTO.class))
+        ),
+        @ApiResponse(responseCode = "400", description = "Dados inválidos"),
+        @ApiResponse(responseCode = "500", description = "Erro interno")
+    })
+    public Mono<ResponseEntity<Resposta2FADTO>> gerarCodigo2FA(
+            @Valid @RequestBody Requisicao2FADTO request,
+            ServerWebExchange exchange) {
+        
+        if (request == null || twoFactorService == null) {
+            return Mono.just(ResponseEntity.badRequest().body(Resposta2FADTO.falha()));
+        }
+        
+        String clientIp = getClientIp(exchange);
+        logger.info("🔐 Gerando código 2FA: usuario={}, canal={}, ip={}", 
+                   request.usuarioId(), request.canal(), clientIp);
+        
+        return twoFactorService.gerarCodigo(request.usuarioId(), request.canal())
+            .map(ResponseEntity::ok)
+            .onErrorResume(throwable -> {
+                logger.error("❌ Erro ao gerar código 2FA: {}", throwable.getMessage());
+                return Mono.just(ResponseEntity.status(500).body(Resposta2FADTO.falha()));
+            });
+    }
+    
+    /**
+     * ✅ Verificar código 2FA do usuário.
+     */
+    @PostMapping(value = "/2fa/verify",
+                 consumes = MediaType.APPLICATION_JSON_VALUE,
+                 produces = MediaType.APPLICATION_JSON_VALUE)
+    @Operation(
+        summary = "Verificar código 2FA",
+        description = "Verifica código de dois fatores do usuário"
+    )
+    public Mono<ResponseEntity<Map<String, Boolean>>> verificarCodigo2FA(
+            @Valid @RequestBody Verificacao2FADTO request,
+            ServerWebExchange exchange) {
+        
+        if (request == null || twoFactorService == null) {
+            return Mono.just(ResponseEntity.badRequest().body(Map.of("ok", false)));
+        }
+        
+        String clientIp = getClientIp(exchange);
+        logger.info("🔍 Verificando código 2FA: usuario={}, ip={}", request.usuarioId(), clientIp);
+        
+        return twoFactorService.verificarCodigo(request.usuarioId(), request.codigo())
+            .map(valido -> ResponseEntity.ok(Map.of("ok", valido)))
+            .onErrorResume(throwable -> {
+                logger.error("❌ Erro ao verificar código 2FA: {}", throwable.getMessage());
+                return Mono.just(ResponseEntity.status(500).body(Map.of("ok", false)));
+            });
+    }
+    
+    /**
+     * 🚫 Desabilitar 2FA para usuário (admin only).
+     */
+    @PostMapping(value = "/2fa/disable/{usuarioId}",
+                 produces = MediaType.APPLICATION_JSON_VALUE)
+    @Operation(
+        summary = "Desabilitar 2FA",
+        description = "Desabilita autenticação de dois fatores para usuário (admin only)"
+    )
+    public Mono<ResponseEntity<Map<String, String>>> desabilitar2FA(
+            @PathVariable String usuarioId,
+            ServerWebExchange exchange) {
+        
+        if (usuarioId == null || usuarioId.trim().isEmpty() || twoFactorService == null) {
+            return Mono.just(ResponseEntity.badRequest()
+                .body(Map.of("message", "usuarioId é obrigatório")));
+        }
+        
+        String clientIp = getClientIp(exchange);
+        logger.info("🚫 Desabilitando 2FA: usuario={}, ip={}", usuarioId, clientIp);
+        
+        return twoFactorService.desabilitar2FA(usuarioId)
+            .then(Mono.fromCallable(() -> 
+                ResponseEntity.ok(Map.of("message", "2FA desabilitado com sucesso"))))
+            .onErrorResume(throwable -> {
+                logger.error("❌ Erro ao desabilitar 2FA: {}", throwable.getMessage());
+                return Mono.just(ResponseEntity.status(500)
+                    .body(Map.of("message", "Erro interno")));
+            });
+    }
+    
+    // ============================================================================
+    // 🩺 ENDPOINTS DE DIAGNÓSTICO
+    // ============================================================================
+    
+    /**
+     * 👤 Diagnóstico detalhado do usuário (admin only).
+     */
+    @GetMapping(value = "/diagnostics/usuario/{username}",
+               produces = MediaType.APPLICATION_JSON_VALUE)
+    @Operation(
+        summary = "Diagnóstico de usuário",
+        description = "Diagnóstico detalhado do usuário (admin only)"
+    )
+    public Mono<ResponseEntity<DiagnosticoUsuarioDTO>> diagnosticoUsuario(
+            @PathVariable String username,
+            ServerWebExchange exchange) {
+        
+        if (username == null || username.trim().isEmpty() || diagnosticoService == null) {
+            DiagnosticoUsuarioDTO erro = new DiagnosticoUsuarioDTO(
+                false, false, 0, null, null, List.of("Username inválido"), "ERRO"
+            );
+            return Mono.just(ResponseEntity.badRequest().body(erro));
+        }
+        
+        String clientIp = getClientIp(exchange);
+        logger.info("🩺 Diagnóstico solicitado: usuario={}, ip={}", username, clientIp);
+        
+        return diagnosticoService.diagnosticoUsuario(username)
+            .map(ResponseEntity::ok)
+            .onErrorResume(throwable -> {
+                logger.error("❌ Erro no diagnóstico: {}", throwable.getMessage());
+                DiagnosticoUsuarioDTO erro = new DiagnosticoUsuarioDTO(
+                    false, false, 0, null, null, List.of("Erro interno"), "ERRO"
+                );
+                return Mono.just(ResponseEntity.status(500).body(erro));
+            });
+    }
+    
+    /**
+     * 🏥 Diagnóstico completo de health do sistema (admin only).
+     */
+    @GetMapping(value = "/diagnostics/health",
+               produces = MediaType.APPLICATION_JSON_VALUE)
+    @Operation(
+        summary = "Diagnóstico de health",
+        description = "Diagnóstico completo de health do sistema (admin only)"
+    )
+    public Mono<ResponseEntity<DiagnosticoHealthDTO>> diagnosticoHealth(
+            ServerWebExchange exchange) {
+        
+        if (diagnosticoService == null) {
+            DiagnosticoHealthDTO erro = new DiagnosticoHealthDTO(
+                "DOWN", LocalDateTime.now(), Map.of(), Map.of(), Map.of(), 0, "1.0.0"
+            );
+            return Mono.just(ResponseEntity.status(503).body(erro));
+        }
+        
+        String clientIp = getClientIp(exchange);
+        logger.info("🏥 Health check completo solicitado: ip={}", clientIp);
+        
+        return diagnosticoService.diagnosticoHealth()
+            .map(health -> {
+                HttpStatus status = "UP".equals(health.status()) ? 
+                    HttpStatus.OK : HttpStatus.SERVICE_UNAVAILABLE;
+                return ResponseEntity.status(status).body(health);
+            })
+            .onErrorResume(throwable -> {
+                logger.error("❌ Erro no health check: {}", throwable.getMessage());
+                DiagnosticoHealthDTO erro = new DiagnosticoHealthDTO(
+                    "DOWN", LocalDateTime.now(), 
+                    Map.of("error", throwable.getMessage()),
+                    Map.of("error", throwable.getMessage()),
+                    Map.of("error", throwable.getMessage()),
+                    0, "1.0.0"
+                );
+                return Mono.just(ResponseEntity.status(503).body(erro));
             });
     }
     

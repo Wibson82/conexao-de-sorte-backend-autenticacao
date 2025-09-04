@@ -83,6 +83,11 @@ public class CacheConfig {
                 .entryTtl(Duration.ofHours(1))
                 .prefixCacheNameWith("auth:jwks:"));
 
+        // 2FA: códigos temporários (5 minutos)
+        cacheConfigurations.put("two-factor-codes", defaultConfig
+                .entryTtl(Duration.ofMinutes(5))
+                .prefixCacheNameWith("auth:2fa:"));
+
         RedisCacheManager cacheManager = RedisCacheManager.builder(connectionFactory)
                 .cacheDefaults(defaultConfig)
                 .withInitialCacheConfigurations(cacheConfigurations)

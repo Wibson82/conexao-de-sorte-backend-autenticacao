@@ -12,11 +12,11 @@
     </parent>
 
     <groupId>br.tec.facilitaservicos</groupId>
-    <artifactId>autenticacao</artifactId>
+    <artifactId>auth-users</artifactId>
     <version>1.0.0</version>
     <packaging>jar</packaging>
-    <name>Autenticacao Microservice</name>
-    <description>Microserviço de autenticação reativo com Spring WebFlux e R2DBC</description>
+    <name>Authentication and Users Consolidated Microservice</name>
+    <description>Microserviço consolidado de autenticação, usuários e feedback com Spring WebFlux e R2DBC</description>
 
     <properties>
         <java.version>24</java.version>
@@ -349,6 +349,45 @@
                     <connectRetriesInterval>10</connectRetriesInterval>
                 </configuration>
             </plugin>
+
+            <!-- Maven Enforcer Plugin - Anti-downgrade policies -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-enforcer-plugin</artifactId>
+                <version>3.5.0</version>
+                <configuration>
+                    <rules>
+                        <requireJavaVersion>
+                            <version>[24,)</version>
+                            <message>🚫 DOWNGRADE BLOCKED: Java 24+ required, found ${java.version}</message>
+                        </requireJavaVersion>
+                        <requireMavenVersion>
+                            <version>[3.9.0,)</version>
+                            <message>🚫 DOWNGRADE BLOCKED: Maven 3.9.0+ required</message>
+                        </requireMavenVersion>
+                        <bannedDependencies>
+                            <excludes>
+                                <exclude>org.springframework.boot:spring-boot-starter-web</exclude>
+                                <exclude>org.springframework:spring-webmvc</exclude>
+                                <exclude>com.h2database:h2:*:*:compile</exclude>
+                            </excludes>
+                            <message>🚫 BLOCKED: Legacy dependencies not allowed (use WebFlux, not WebMVC)</message>
+                        </bannedDependencies>
+                        <dependencyConvergence/>
+                    </rules>
+                    <fail>true</fail>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>enforce-versions</id>
+                        <phase>validate</phase>
+                        <goals>
+                            <goal>enforce</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
             <plugin>
                 <groupId>com.github.spotbugs</groupId>
                 <artifactId>spotbugs-maven-plugin</artifactId>
