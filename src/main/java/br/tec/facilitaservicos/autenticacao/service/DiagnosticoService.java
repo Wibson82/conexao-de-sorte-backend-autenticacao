@@ -17,7 +17,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Serviço de diagnóstico do sistema de autenticação.
+ * Servico de diagnostico do sistema de autenticacao.
  */
 @Service
 public class DiagnosticoService {
@@ -41,10 +41,10 @@ public class DiagnosticoService {
     }
     
     /**
-     * Diagnóstico completo do usuário.
+     * Diagnostico completo do usuario.
      */
     public Mono<DiagnosticoUsuarioDTO> diagnosticoUsuario(String username) {
-        logger.info("Executando diagnóstico para usuário: {}", username);
+        logger.info("Executando diagnostico para usuario: {}", username);
         
         return r2dbcTemplate.getDatabaseClient()
             .sql("SELECT COUNT(*) as count FROM usuarios WHERE username = :username")
@@ -82,19 +82,19 @@ public class DiagnosticoService {
                     });
             })
             .onErrorResume(throwable -> {
-                logger.error("Erro no diagnóstico do usuário: {}", username, throwable);
+                logger.error("Erro no diagnostico do usuario: {}", username, throwable);
                 return Mono.just(new DiagnosticoUsuarioDTO(
                     false, false, 0, null, null, 
-                    List.of("Erro no diagnóstico"), "ERRO"
+                    List.of("Erro no diagnostico"), "ERRO"
                 ));
             });
     }
     
     /**
-     * Diagnóstico completo de health do sistema.
+     * Diagnostico completo de health do sistema.
      */
     public Mono<DiagnosticoHealthDTO> diagnosticoHealth() {
-        logger.info("Executando diagnóstico completo de health");
+        logger.info("Executando diagnostico completo de health");
         
         return Mono.zip(
             verificarCache(),
@@ -119,7 +119,7 @@ public class DiagnosticoService {
             );
         })
         .onErrorResume(throwable -> {
-            logger.error("Erro no diagnóstico de health", throwable);
+            logger.error("Erro no diagnostico de health", throwable);
             
             Map<String, Object> errorInfo = Map.of(
                 "healthy", false,
@@ -175,7 +175,7 @@ public class DiagnosticoService {
     }
     
     private Mono<Map<String, Object>> verificarKeyVault() {
-        // Simular verificação do KeyVault
+        // Simular verificacao do KeyVault
         return keyVaultService.getSecret("conexao-de-sorte-jwt-secret")
             .map(secret -> {
                 Map<String, Object> info = new HashMap<>();
