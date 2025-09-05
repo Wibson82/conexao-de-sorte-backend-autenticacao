@@ -1,0 +1,361 @@
+version: "3.9"
+
+services:
+  # Gateway Service
+  conexao-gateway:
+    build: ./conexao-de-sorte-gateway
+    container_name: conexao-gateway
+    hostname: conexao-gateway
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE:-prod}
+      # Redis (via KeyVault/env padronizados)
+      - conexao-de-sorte-redis-host=${conexao-de-sorte-redis-host:-conexao-redis}
+      - conexao-de-sorte-redis-port=${conexao-de-sorte-redis-port:-6379}
+      - conexao-de-sorte-redis-password=${conexao-de-sorte-redis-password}
+      - conexao-de-sorte-redis-database=1
+      - AUTH_SERVICE_URL=http://auth-microservice:8081
+      - CHAT_SERVICE_URL=http://chat-microservice:8079
+      - ZIPKIN_ENDPOINT=${ZIPKIN_ENDPOINT:-http://localhost:9411/api/v2/spans}
+      - TRACING_PROBABILITY=${TRACING_PROBABILITY:-0.3}
+      # Azure Key Vault (OIDC no pipeline; containers consomem via endpoint)
+      - AZURE_CLIENT_ID=${AZURE_CLIENT_ID}
+      - AZURE_TENANT_ID=${AZURE_TENANT_ID}
+      - AZURE_SUBSCRIPTION_ID=${AZURE_SUBSCRIPTION_ID}
+      - AZURE_KEYVAULT_ENDPOINT=${AZURE_KEYVAULT_ENDPOINT}
+      - AZURE_KEYVAULT_NAME=${AZURE_KEYVAULT_NAME}
+    networks:
+      - conexao-network
+    depends_on:
+      - conexao-redis
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    labels:
+      casaos.category: "Microservices"
+      casaos.name: "API Gateway"
+      casaos.icon: "https://cdn-icons-png.flaticon.com/512/2721/2721688.png"
+      casaos.port: "8080"
+      casaos.description: "Spring Cloud Gateway - Roteamento e cross-cutting concerns"
+
+  # Auth Microservice
+  auth-microservice:
+    build: ./conexao-de-sorte-backend-autenticacao
+    container_name: auth-microservice
+    hostname: auth-microservice
+    restart: unless-stopped
+    expose:
+      - "8081"
+    environment:
+      - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE:-prod}
+      # Banco - padronizado via MySQL Infrastructure
+      - conexao-de-sorte-database-r2dbc-url=${conexao-de-sorte-database-r2dbc-url:-r2dbc:mysql://mysql-proxy:6033/conexao_auth?useSSL=true&allowPublicKeyRetrieval=false}
+      - conexao-de-sorte-database-flyway-url=${conexao-de-sorte-database-flyway-url:-jdbc:mysql://mysql-proxy:6033/conexao_auth?useSSL=true&allowPublicKeyRetrieval=false}
+      - conexao-de-sorte-database-username=${conexao-de-sorte-database-username}
+      - conexao-de-sorte-database-password=${conexao-de-sorte-database-password}
+      # Redis via variáveis padronizadas
+      - conexao-de-sorte-redis-host=${conexao-de-sorte-redis-host:-conexao-redis}
+      - conexao-de-sorte-redis-port=${conexao-de-sorte-redis-port:-6379}
+      - conexao-de-sorte-redis-password=${conexao-de-sorte-redis-password}
+      - conexao-de-sorte-redis-database=0
+      # JWT/JWKS/Issuer (via KeyVault/env)
+      - conexao-de-sorte-jwt-issuer=${conexao-de-sorte-jwt-issuer}
+      - conexao-de-sorte-jwt-jwks-uri=${conexao-de-sorte-jwt-jwks-uri}
+      # Observabilidade
+      - ZIPKIN_ENDPOINT=${ZIPKIN_ENDPOINT:-http://localhost:9411/api/v2/spans}
+      - TRACING_PROBABILITY=${TRACING_PROBABILITY:-0.1}
+    networks:
+      - conexao-network
+    depends_on:
+      - mysql-infrastructure
+      - conexao-redis
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8081/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+    labels:
+      casaos.category: "Microservices"
+      casaos.name: "Auth Service"
+      casaos.icon: "https://cdn-icons-png.flaticon.com/512/3064/3064197.png"
+      casaos.port: "8081"
+      casaos.description: "Microserviço de Autenticação e Autorização"
+
+  # Chat Microservice
+  chat-microservice:
+    build: ./conexao-de-sorte-backend-batepapo
+    container_name: chat-microservice
+    hostname: chat-microservice
+    restart: unless-stopped
+    expose:
+      - "8079"
+    environment:
+      - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE:-prod}
+      # Banco - padronizado via MySQL Infrastructure
+      - conexao-de-sorte-database-r2dbc-url=${conexao-de-sorte-database-r2dbc-url:-r2dbc:mysql://mysql-proxy:6033/conexao_chat?useSSL=true&allowPublicKeyRetrieval=false}
+      - conexao-de-sorte-database-flyway-url=${conexao-de-sorte-database-flyway-url:-jdbc:mysql://mysql-proxy:6033/conexao_chat?useSSL=true&allowPublicKeyRetrieval=false}
+      - conexao-de-sorte-database-username=${conexao-de-sorte-database-username}
+      - conexao-de-sorte-database-password=${conexao-de-sorte-database-password}
+      # Redis - padronizado
+      - conexao-de-sorte-redis-host=${conexao-de-sorte-redis-host:-conexao-redis}
+      - conexao-de-sorte-redis-port=${conexao-de-sorte-redis-port:-6379}
+      - conexao-de-sorte-redis-password=${conexao-de-sorte-redis-password}
+      - conexao-de-sorte-redis-database=4
+      # Auth URL via DNS interno
+      - AUTH_SERVICE_URL=http://auth-microservice:8081
+      # Observabilidade
+      - ZIPKIN_ENDPOINT=${ZIPKIN_ENDPOINT:-http://localhost:9411/api/v2/spans}
+      - TRACING_PROBABILITY=${TRACING_PROBABILITY:-0.1}
+    networks:
+      - conexao-network
+    depends_on:
+      - mysql-infrastructure
+      - conexao-redis
+      - auth-microservice
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8079/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+    labels:
+      casaos.category: "Microservices"
+      casaos.name: "Chat Service"
+      casaos.icon: "https://cdn-icons-png.flaticon.com/512/134/134718.png"
+      casaos.port: "8079"
+      casaos.description: "Microserviço de Bate-papo em Tempo Real"
+
+  # Scheduler Microservice
+  scheduler-microservice:
+    build: ./conexao-de-sorte-backend-scheduler
+    container_name: scheduler-microservice
+    hostname: scheduler-microservice
+    restart: unless-stopped
+    expose:
+      - "8084"
+    environment:
+      - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE:-prod}
+      - conexao-de-sorte-jwt-issuer=${conexao-de-sorte-jwt-issuer}
+      - conexao-de-sorte-jwt-jwks-uri=${conexao-de-sorte-jwt-jwks-uri}
+      - conexao-de-sorte-database-r2dbc-url=${conexao-de-sorte-database-r2dbc-url:-r2dbc:mysql://mysql-proxy:6033/conexao_shared?useSSL=true&allowPublicKeyRetrieval=false}
+      - conexao-de-sorte-database-username=${conexao-de-sorte-database-username}
+      - conexao-de-sorte-database-password=${conexao-de-sorte-database-password}
+    networks:
+      - conexao-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8084/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    labels:
+      casaos.category: "Microservices"
+      casaos.name: "Scheduler Service"
+      casaos.description: "Microserviço de Agendamento ETL"
+
+  # Privacy Microservice
+  privacy-microservice:
+    build: ./conexao-de-sorte-backend-privacy
+    container_name: privacy-microservice
+    hostname: privacy-microservice
+    restart: unless-stopped
+    expose:
+      - "8087"
+    environment:
+      - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE:-prod}
+      - conexao-de-sorte-jwt-issuer=${conexao-de-sorte-jwt-issuer}
+      - conexao-de-sorte-jwt-jwks-uri=${conexao-de-sorte-jwt-jwks-uri}
+      - conexao-de-sorte-database-r2dbc-url=${conexao-de-sorte-database-r2dbc-url:-r2dbc:mysql://mysql-proxy:6033/conexao_audit?useSSL=true&allowPublicKeyRetrieval=false}
+      - conexao-de-sorte-database-username=${conexao-de-sorte-database-username}
+      - conexao-de-sorte-database-password=${conexao-de-sorte-database-password}
+    networks:
+      - conexao-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8087/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    labels:
+      casaos.category: "Microservices"
+      casaos.name: "Privacy Service"
+      casaos.description: "Microserviço de Privacidade LGPD"
+
+  # Feedback Microservice
+  feedback-microservice:
+    build: ./conexao-de-sorte-backend-feedback
+    container_name: feedback-microservice
+    hostname: feedback-microservice
+    restart: unless-stopped
+    expose:
+      - "8088"
+    environment:
+      - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE:-prod}
+      - conexao-de-sorte-jwt-issuer=${conexao-de-sorte-jwt-issuer}
+      - conexao-de-sorte-jwt-jwks-uri=${conexao-de-sorte-jwt-jwks-uri}
+      - conexao-de-sorte-database-r2dbc-url=${conexao-de-sorte-database-r2dbc-url:-r2dbc:mysql://mysql-proxy:6033/conexao_auth?useSSL=true&allowPublicKeyRetrieval=false}
+      - conexao-de-sorte-database-username=${conexao-de-sorte-database-username}
+      - conexao-de-sorte-database-password=${conexao-de-sorte-database-password}
+    networks:
+      - conexao-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8088/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    labels:
+      casaos.category: "Microservices"
+      casaos.name: "Feedback Service"
+      casaos.description: "Microserviço de Feedback"
+
+  # Catalog Microservice
+  catalog-microservice:
+    build: ./conexao-de-sorte-backend-catalog
+    container_name: catalog-microservice
+    hostname: catalog-microservice
+    restart: unless-stopped
+    expose:
+      - "8089"
+    environment:
+      - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE:-prod}
+      - conexao-de-sorte-jwt-issuer=${conexao-de-sorte-jwt-issuer}
+      - conexao-de-sorte-jwt-jwks-uri=${conexao-de-sorte-jwt-jwks-uri}
+      - conexao-de-sorte-database-r2dbc-url=${conexao-de-sorte-database-r2dbc-url:-r2dbc:mysql://mysql-proxy:6033/conexao_shared?useSSL=true&allowPublicKeyRetrieval=false}
+      - conexao-de-sorte-database-username=${conexao-de-sorte-database-username}
+      - conexao-de-sorte-database-password=${conexao-de-sorte-database-password}
+    networks:
+      - conexao-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8089/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    labels:
+      casaos.category: "Microservices"
+      casaos.name: "Catalog Service"
+      casaos.description: "Microserviço de Catálogo Comercial"
+
+  # Observability Microservice
+  observability-microservice:
+    build: ./conexao-de-sorte-observability-microservice
+    container_name: observability-microservice
+    hostname: observability-microservice
+    restart: unless-stopped
+    expose:
+      - "8085"
+    environment:
+      - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE:-prod}
+      - conexao-de-sorte-jwt-issuer=${conexao-de-sorte-jwt-issuer}
+      - conexao-de-sorte-jwt-jwks-uri=${conexao-de-sorte-jwt-jwks-uri}
+    networks:
+      - conexao-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8085/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    labels:
+      casaos.category: "Microservices"
+      casaos.name: "Observability Service"
+      casaos.description: "Microserviço de Observabilidade"
+
+  # Crypto/KMS Microservice (canônico)
+  crypto-microservice:
+    build: ./conexao-de-sorte-backend-criptografia-kms
+    container_name: crypto-microservice
+    hostname: crypto-microservice
+    restart: unless-stopped
+    expose:
+      - "8088"
+    environment:
+      - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE:-prod}
+      - conexao-de-sorte-jwt-issuer=${conexao-de-sorte-jwt-issuer}
+      - conexao-de-sorte-jwt-jwks-uri=${conexao-de-sorte-jwt-jwks-uri}
+      - AZURE_KEYVAULT_ENDPOINT=${AZURE_KEYVAULT_ENDPOINT}
+      - AZURE_KEYVAULT_NAME=${AZURE_KEYVAULT_NAME}
+    networks:
+      - conexao-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8088/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    labels:
+      casaos.category: "Microservices"
+      casaos.name: "Crypto/KMS Service"
+      casaos.description: "Microserviço Canônico de Criptografia e KMS"
+
+  # MySQL Infrastructure Microservice
+  mysql-infrastructure:
+    build: ./conexao-de-sorte-mysql-infrastructure
+    container_name: mysql-infrastructure
+    hostname: mysql-proxy
+    restart: unless-stopped
+    ports:
+      - "6033:6033"  # ProxySQL MySQL interface
+      - "3306:3306"  # MySQL Master
+      - "3307:3307"  # MySQL Slave 1
+      - "3308:3308"  # MySQL Slave 2
+      - "9104:9104"  # MySQL Exporter Master
+      - "9105:9105"  # MySQL Exporter Slave 1
+      - "9106:9106"  # MySQL Exporter Slave 2
+    environment:
+      - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE:-prod}
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+      - MYSQL_REPLICATION_PASSWORD=${MYSQL_REPLICATION_PASSWORD}
+      - PROXYSQL_PASSWORD=${PROXYSQL_PASSWORD}
+      - conexao-de-sorte-database-username=${conexao-de-sorte-database-username}
+      - conexao-de-sorte-database-password=${conexao-de-sorte-database-password}
+    volumes:
+      - mysql_master_data:/data/mysql/master
+      - mysql_slave1_data:/data/mysql/slave1
+      - mysql_slave2_data:/data/mysql/slave2
+      - mysql_logs:/data/mysql/logs
+      - proxysql_data:/data/proxysql
+    networks:
+      - conexao-network
+    healthcheck:
+      test: ["CMD", "mysql", "-h", "mysql-proxy", "-P", "6033", "-u", "admin", "-p$PROXYSQL_PASSWORD", "-e", "SELECT 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 120s
+    labels:
+      casaos.category: "Database"
+      casaos.name: "MySQL Infrastructure"
+      casaos.icon: "https://cdn-icons-png.flaticon.com/512/528/528101.png"
+      casaos.port: "6033"
+      casaos.description: "MySQL Master-Slave com ProxySQL Load Balancer"
+
+volumes:
+  mysql_master_data:
+    driver: local
+  mysql_slave1_data:
+    driver: local
+  mysql_slave2_data:
+    driver: local
+  mysql_logs:
+    driver: local
+  proxysql_data:
+    driver: local
+
+networks:
+  conexao-network:
+    name: conexao-network
+    external: true
+
+# Observações:
+# - A rede 'conexao-network' deve existir (criada pelo projeto original)
+# - MySQL Infrastructure substitui o service mysql antigo
+# - Conexão via mysql-proxy:6033 com load balancing automático
+# - Variáveis de ambiente devem ser definidas no arquivo .env
