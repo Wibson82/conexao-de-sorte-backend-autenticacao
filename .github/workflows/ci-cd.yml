@@ -346,7 +346,7 @@ jobs:
     needs: [build-image, sign-image]
     runs-on: ubuntu-latest
     timeout-minutes: 45
-    if: (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.environment == 'production'))
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.environment == 'production'))
     name: 🌟 Deploy to Production (Self-hosted)
     permissions:
       id-token: write
