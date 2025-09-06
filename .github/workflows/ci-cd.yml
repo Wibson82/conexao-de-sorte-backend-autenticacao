@@ -22,12 +22,11 @@ env:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name == 'workflow_dispatch' && inputs.environment || 'production' }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   test-runner:
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
+    runs-on: [self-hosted, auth-service]
     name: 🧪 Test Self-hosted Runner
     steps:
       - uses: actions/checkout@v4
@@ -62,8 +61,7 @@ jobs:
 
   build-and-test:
     needs: test-runner
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
+    runs-on: self-hosted
     name: 🏗️ Build and Test
     steps:
       - uses: actions/checkout@v4
@@ -123,8 +121,7 @@ jobs:
           retention-days: 7
 
   build-image:
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
+    runs-on: self-hosted
     name: 🐳 Build Docker Image
     needs: build-and-test
     permissions:
@@ -193,8 +190,7 @@ jobs:
             VERSION=1.0.0
 
   sign-image:
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
+    runs-on: self-hosted
     name: ✍️ Sign & Verify (100% OIDC keyless)
     needs: build-image
     permissions:
@@ -264,8 +260,7 @@ jobs:
 
   deploy-production:
     needs: [build-image, sign-image]
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
+    runs-on: [self-hosted, auth-service]
     if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.environment == 'production')
     name: 🌟 Deploy to Production (Self-hosted)
     permissions:
@@ -439,8 +434,7 @@ jobs:
           echo "🎉 Deployment completed successfully - Service is healthy!"
 
   notify:
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
+    runs-on: self-hosted
     name: 📢 Notification
     if: always()
     needs: [build-and-test, build-image, sign-image, deploy-production]
