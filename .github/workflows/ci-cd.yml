@@ -275,14 +275,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Guard: validar a presença de DEPLOY_HOST nas secrets em tempo de execução
-      - name: "Guard: require DEPLOY_HOST secret"
-        run: |
-          set -euo pipefail
-          if [ -z "${{ secrets.DEPLOY_HOST }}" ]; then
-            echo "ERROR: secrets.DEPLOY_HOST not set. Aborting deploy." >&2
-            exit 1
-          fi
+
 
       - name: Azure Login (OIDC)
         uses: azure/login@v2
