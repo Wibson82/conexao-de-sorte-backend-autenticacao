@@ -35,8 +35,8 @@
         <!-- Testcontainers -->
         <testcontainers.version>1.21.3</testcontainers.version>
         
-        <!-- Mockito -->
-        <mockito.version>5.13.0</mockito.version>
+        <!-- Mockito (Java 24 compatible) -->
+        <mockito.version>5.18.0</mockito.version>
         <spring-cloud.version>2025.0.0</spring-cloud.version> <!-- Adicionado para compatibilidade com Spring Boot 3.5.5 -->
     </properties>
 
