@@ -64,7 +64,8 @@ spring:
       - optional:file:./secrets.properties
       
   r2dbc:
-    url: ${conexao-de-sorte-database-r2dbc-url:r2dbc:mysql://mysql-proxy:6033/conexao_auth?useSSL=true&allowPublicKeyRetrieval=false}
+    # Preferencialmente usa -database-r2dbc-url; mantém compat com -database-url
+    url: ${conexao-de-sorte-database-r2dbc-url:${conexao-de-sorte-database-url:r2dbc:mysql://mysql-proxy:6033/conexao_auth?useSSL=true&allowPublicKeyRetrieval=false}}
     username: ${conexao-de-sorte-database-username:}
     password: ${conexao-de-sorte-database-password:}
     pool:
@@ -78,7 +79,8 @@ spring:
 
   flyway:
     enabled: true
-    url: ${conexao-de-sorte-database-flyway-url:jdbc:mysql://mysql-proxy:6033/conexao_auth?useSSL=true&allowPublicKeyRetrieval=false}
+    # Padroniza uso de -database-jdbc-url, mantendo compatibilidade com -database-flyway-url
+    url: ${conexao-de-sorte-database-jdbc-url:${conexao-de-sorte-database-flyway-url:jdbc:mysql://mysql-proxy:6033/conexao_auth?useSSL=true&allowPublicKeyRetrieval=false}}
     user: ${conexao-de-sorte-database-username:}
     password: ${conexao-de-sorte-database-password:}
     locations: classpath:db/migration
@@ -272,64 +274,6 @@ resilience4j:
         permitted-number-of-calls-in-half-open-state: 5
 
 ---
-# Development Profile
-spring:
-  config:
-    activate:
-      on-profile: dev
-      
-logging:
-  level:
-    "[br.tec.facilitaservicos.autenticacao]": DEBUG
-    "[org.springframework.security]": DEBUG
-    "[org.springframework.r2dbc]": DEBUG
-    
-app:
-  features:
-    auth-microservice: true
-    audit-logging: true
-    metrics-collection: true
-  rate-limit:
-    default-requests-per-minute: 100
-    endpoints:
-      "/auth/token":
-        requests-per-minute: 20
-      "/auth/refresh":
-        requests-per-minute: 50
-
----
-# Test Profile  
-spring:
-  config:
-    activate:
-      on-profile: test
-      
-  cloud:
-    azure:
-      keyvault:
-        secret:
-          enabled: false
-          
-app:
-  jwt:
-    key-vault:
-      enabled: false
-  features:
-    auth-microservice: true
-    metrics-collection: false
-  rate-limit:
-    default-requests-per-minute: 5
-    endpoints:
-      "/auth/token":
-        requests-per-minute: 2
-      "/auth/refresh":
-        requests-per-minute: 3
-      
-logging:
-  level:
-    "[br.tec.facilitaservicos.autenticacao]": DEBUG
-
----
 # Production Profile
 spring:
   config:
@@ -343,10 +287,10 @@ spring:
         secret:
           enabled: ${AZURE_KEYVAULT_ENABLED:true}
           
-# Configurações específicas de produção (sobrescrever padrões)
+# Configurações específicas de produção (sobrescrevendo padrões)
 server:
   ssl:
-    enabled: ${conexao-de-sorte-ssl-enabled:true}  # SSL habilitado em produção
+    enabled: ${conexao-de-sorte-ssl-enabled:false}  # TLS termina no Traefik (ACME)
       
 app:
   jwt:
