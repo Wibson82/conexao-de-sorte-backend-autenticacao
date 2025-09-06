@@ -39,9 +39,16 @@ COPY pom.xml .
 COPY .mvn/ .mvn/
 COPY mvnw .
 
-# Download de dependências (layer cacheável)
+# Download de dependências (layer cacheável) com tolerância a falhas transitórias
 RUN --mount=type=cache,target=/root/.m2 \
-    mvn dependency:go-offline -B
+    /bin/sh -c 'set -e; i=0; \
+      while [ $i -lt 3 ]; do \
+        ./mvnw -B -e -DskipTests \
+        -Dmaven.wagon.http.retryHandler.count=3 \
+        -Dmaven.wagon.rto=60000 \
+        dependency:go-offline && exit 0; \
+        i=$((i+1)); echo "Retry $$i after transient error"; sleep 5; \
+      done; exit 1'
 
 # Copiar código fonte
 COPY src/ src/
@@ -55,6 +62,11 @@ RUN --mount=type=cache,target=/root/.m2 \
 
 # === ESTÁGIO 2: RUNTIME ===
 FROM eclipse-temurin:24-jre-alpine AS runtime
+
+# Build metadata args (redeclared in this stage)
+ARG BUILD_DATE
+ARG VCS_REF
+ARG VERSION=1.0.0
 
 # Instalar dependências do sistema
 RUN apk add --no-cache \
