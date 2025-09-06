@@ -267,7 +267,6 @@ jobs:
             CONEXAO_DE_SORTE_ENCRYPTION_MASTER_KEY=${{ env.CONEXAO_DE_SORTE_ENCRYPTION_MASTER_KEY }}
             CONEXAO_DE_SORTE_ENCRYPTION_MASTER_PASSWORD=${{ env.CONEXAO_DE_SORTE_ENCRYPTION_MASTER_PASSWORD }}
             CONEXAO_DE_SORTE_ENCRYPTION_BACKUP_KEY=${{ env.CONEXAO_DE_SORTE_ENCRYPTION_BACKUP_KEY }}
-          build-args: |
             SERVICE_NAME=${{ env.SERVICE_NAME }}
             BUILD_DATE=${{ github.event.head_commit.timestamp || github.run_id }}
             VCS_REF=${{ github.sha }}
