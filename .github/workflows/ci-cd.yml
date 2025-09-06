@@ -31,6 +31,60 @@ jobs:
     name: 🧪 Test Self-hosted Runner
     steps:
       - uses: actions/checkout@v4
+      - name: Azure Login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Fetch Key Vault secrets (build args)
+        id: kv
+        shell: bash
+        run: |
+          set -euo pipefail
+          VAULT_ENDPOINT="${{ secrets.AZURE_KEYVAULT_ENDPOINT }}"
+          if [[ "$VAULT_ENDPOINT" =~ https://([^.]+)\.vault\.azure\.net ]]; then
+            VAULT="${BASH_REMATCH[1]}"
+          else
+            echo "ERROR: Invalid AZURE_KEYVAULT_ENDPOINT format: $VAULT_ENDPOINT" >&2
+            exit 1
+          fi
+          map_kv() { echo "$1" | tr '[:lower:]' '[:upper:]' | tr '-' '_'; }
+          fetch() {
+            local name="$1"; local var="$(map_kv "$name")"; 
+            val=$(az keyvault secret show --vault-name "$VAULT" --name "$name" --query value -o tsv 2>/dev/null || true)
+            if [ -n "$val" ]; then echo "$var<<__EOF__" >> $GITHUB_ENV; echo "$val" >> $GITHUB_ENV; echo "__EOF__" >> $GITHUB_ENV; fi
+          }
+          secrets=(
+            conexao-de-sorte-database-url
+            conexao-de-sorte-database-jdbc-url
+            conexao-de-sorte-database-r2dbc-url
+            conexao-de-sorte-database-username
+            conexao-de-sorte-database-password
+            conexao-de-sorte-database-proxysql-password
+            conexao-de-sorte-redis-host
+            conexao-de-sorte-redis-port
+            conexao-de-sorte-redis-password
+            conexao-de-sorte-redis-database
+            conexao-de-sorte-jwt-issuer
+            conexao-de-sorte-jwt-jwks-uri
+            conexao-de-sorte-jwt-key-id
+            conexao-de-sorte-jwt-secret
+            conexao-de-sorte-jwt-signing-key
+            conexao-de-sorte-jwt-verification-key
+            conexao-de-sorte-jwt-privateKey
+            conexao-de-sorte-jwt-publicKey
+            conexao-de-sorte-cors-allowed-origins
+            conexao-de-sorte-cors-allow-credentials
+            conexao-de-sorte-ssl-enabled
+            conexao-de-sorte-ssl-keystore-path
+            conexao-de-sorte-ssl-keystore-password
+            conexao-de-sorte-encryption-master-key
+            conexao-de-sorte-encryption-master-password
+            conexao-de-sorte-encryption-backup-key
+          )
+          for s in "${secrets[@]}"; do fetch "$s"; done
       - name: "Guard: forbid r2dbc:h2 outside tests"
         run: |
           set -euo pipefail
@@ -186,6 +240,33 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
           network: host
+          build-args: |
+            CONEXAO_DE_SORTE_DATABASE_URL=${{ env.CONEXAO_DE_SORTE_DATABASE_URL }}
+            CONEXAO_DE_SORTE_DATABASE_JDBC_URL=${{ env.CONEXAO_DE_SORTE_DATABASE_JDBC_URL }}
+            CONEXAO_DE_SORTE_DATABASE_R2DBC_URL=${{ env.CONEXAO_DE_SORTE_DATABASE_R2DBC_URL }}
+            CONEXAO_DE_SORTE_DATABASE_USERNAME=${{ env.CONEXAO_DE_SORTE_DATABASE_USERNAME }}
+            CONEXAO_DE_SORTE_DATABASE_PASSWORD=${{ env.CONEXAO_DE_SORTE_DATABASE_PASSWORD }}
+            CONEXAO_DE_SORTE_DATABASE_PROXYSQL_PASSWORD=${{ env.CONEXAO_DE_SORTE_DATABASE_PROXYSQL_PASSWORD }}
+            CONEXAO_DE_SORTE_REDIS_HOST=${{ env.CONEXAO_DE_SORTE_REDIS_HOST }}
+            CONEXAO_DE_SORTE_REDIS_PORT=${{ env.CONEXAO_DE_SORTE_REDIS_PORT }}
+            CONEXAO_DE_SORTE_REDIS_PASSWORD=${{ env.CONEXAO_DE_SORTE_REDIS_PASSWORD }}
+            CONEXAO_DE_SORTE_REDIS_DATABASE=${{ env.CONEXAO_DE_SORTE_REDIS_DATABASE }}
+            CONEXAO_DE_SORTE_JWT_ISSUER=${{ env.CONEXAO_DE_SORTE_JWT_ISSUER }}
+            CONEXAO_DE_SORTE_JWT_JWKS_URI=${{ env.CONEXAO_DE_SORTE_JWT_JWKS_URI }}
+            CONEXAO_DE_SORTE_JWT_KEY_ID=${{ env.CONEXAO_DE_SORTE_JWT_KEY_ID }}
+            CONEXAO_DE_SORTE_JWT_SECRET=${{ env.CONEXAO_DE_SORTE_JWT_SECRET }}
+            CONEXAO_DE_SORTE_JWT_SIGNING_KEY=${{ env.CONEXAO_DE_SORTE_JWT_SIGNING_KEY }}
+            CONEXAO_DE_SORTE_JWT_VERIFICATION_KEY=${{ env.CONEXAO_DE_SORTE_JWT_VERIFICATION_KEY }}
+            CONEXAO_DE_SORTE_JWT_PRIVATEKEY=${{ env.CONEXAO_DE_SORTE_JWT_PRIVATEKEY }}
+            CONEXAO_DE_SORTE_JWT_PUBLICKEY=${{ env.CONEXAO_DE_SORTE_JWT_PUBLICKEY }}
+            CONEXAO_DE_SORTE_CORS_ALLOWED_ORIGINS=${{ env.CONEXAO_DE_SORTE_CORS_ALLOWED_ORIGINS }}
+            CONEXAO_DE_SORTE_CORS_ALLOW_CREDENTIALS=${{ env.CONEXAO_DE_SORTE_CORS_ALLOW_CREDENTIALS }}
+            CONEXAO_DE_SORTE_SSL_ENABLED=${{ env.CONEXAO_DE_SORTE_SSL_ENABLED }}
+            CONEXAO_DE_SORTE_SSL_KEYSTORE_PATH=${{ env.CONEXAO_DE_SORTE_SSL_KEYSTORE_PATH }}
+            CONEXAO_DE_SORTE_SSL_KEYSTORE_PASSWORD=${{ env.CONEXAO_DE_SORTE_SSL_KEYSTORE_PASSWORD }}
+            CONEXAO_DE_SORTE_ENCRYPTION_MASTER_KEY=${{ env.CONEXAO_DE_SORTE_ENCRYPTION_MASTER_KEY }}
+            CONEXAO_DE_SORTE_ENCRYPTION_MASTER_PASSWORD=${{ env.CONEXAO_DE_SORTE_ENCRYPTION_MASTER_PASSWORD }}
+            CONEXAO_DE_SORTE_ENCRYPTION_BACKUP_KEY=${{ env.CONEXAO_DE_SORTE_ENCRYPTION_BACKUP_KEY }}
           build-args: |
             SERVICE_NAME=${{ env.SERVICE_NAME }}
             BUILD_DATE=${{ github.event.head_commit.timestamp || github.run_id }}
