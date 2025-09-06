@@ -330,8 +330,8 @@ jobs:
           # Create secure secrets directory
           SECRETS_DIR=$(mktemp -d -p /tmp conexao_auth_secrets_XXXX)
           umask 077
-          printf '%s' "$(get conexao-de-sorte-jwt-privatekey)" > "$SECRETS_DIR/jwt_private.pem"
-          printf '%s' "$(get conexao-de-sorte-jwt-publickey)" > "$SECRETS_DIR/jwt_public.pem"
+          printf '%s' "$(get conexao-de-sorte-jwt-privateKey)" > "$SECRETS_DIR/jwt_private.pem"
+          printf '%s' "$(get conexao-de-sorte-jwt-publicKey)" > "$SECRETS_DIR/jwt_public.pem"
           printf '%s' "$(get conexao-de-sorte-encryption-master-key)" > "$SECRETS_DIR/encryption_master_key"
           chmod 600 "$SECRETS_DIR"/*
           echo "SECRETS_DIR=$SECRETS_DIR" >> $GITHUB_ENV
