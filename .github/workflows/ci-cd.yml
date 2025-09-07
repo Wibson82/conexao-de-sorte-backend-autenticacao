@@ -44,7 +44,7 @@ jobs:
         run: |
           set -euo pipefail
           mvn -B -q dependency:list -DincludeScope=compile -DoutputFile=dep.txt -DappendOutput=true || true
-          if grep -E "com\.h2database:h2|io\.r2dbc:r2dbc-h2" dep.txt; then
+          if grep -E "com.h2database:h2|io.r2dbc:r2dbc-h2" dep.txt; then
             echo "H2 present in non-test scope (compile/runtime)" >&2
             exit 1
           fi
@@ -81,7 +81,7 @@ jobs:
 
   build-deploy-selfhosted:
     runs-on: [self-hosted, conexao-de-sorte-backend-autenticacao]
-    timeout-minutes: 80 # Step timeouts: 10 * 8
+    timeout-minutes: 90 # Step timeouts: 10 * 9
     name: 🚀 Build & Deploy on Self-hosted Runner (Ubuntu)
     needs: build-and-test
     if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.environment == 'production'))
@@ -158,6 +158,13 @@ jobs:
           echo "DB_PASSWORD=$(get conexao-de-sorte-db-password)" >> $GITHUB_ENV
           
           echo "✅ Azure Key Vault secrets loaded successfully" >&2
+
+      - name: Prepare Deploy Vars
+        id: prep_vars
+        timeout-minutes: 5
+        run: |
+          db_name="db_$(echo ${{ env.SERVICE_NAME }} | tr '-' '_')"
+          echo "DB_NAME=$db_name" >> "$GITHUB_ENV"
           
       - name: 🧹 Clean old containers
         timeout-minutes: 10
@@ -204,7 +211,6 @@ jobs:
           set -euo pipefail
           IMAGE_TAG="${{ steps.build.outputs.image_tag }}"
           CONTAINER_NAME="${{ env.SERVICE_NAME }}-microservice"
-          DB_NAME="db_${{ replace(env.SERVICE_NAME, '-', '_') }}"
           export TZ=America/Sao_Paulo
           
           docker network create conexao-network 2>/dev/null || true
@@ -228,10 +234,10 @@ jobs:
             -e AZURE_TENANT_ID="${{ secrets.AZURE_TENANT_ID }}" \
             -e AZURE_KEYVAULT_ENDPOINT="${{ secrets.AZURE_KEYVAULT_ENDPOINT }}" \
             -e AZURE_KEYVAULT_ENABLED="true" \
-            -e SPRING_DATASOURCE_R2DBC_URL="r2dbc:mysql://${{ env.DB_HOST }}:${{ env.DB_PORT }}/$DB_NAME" \
+            -e SPRING_DATASOURCE_R2DBC_URL="r2dbc:mysql://${{ env.DB_HOST }}:${{ env.DB_PORT }}/${{ env.DB_NAME }}" \
             -e SPRING_DATASOURCE_R2DBC_USERNAME="${{ env.DB_USERNAME }}" \
             -e SPRING_DATASOURCE_R2DBC_PASSWORD="${{ env.DB_PASSWORD }}" \
-            -e SPRING_FLYWAY_URL="jdbc:mysql://${{ env.DB_HOST }}:${{ env.DB_PORT }}/$DB_NAME" \
+            -e SPRING_FLYWAY_URL="jdbc:mysql://${{ env.DB_HOST }}:${{ env.DB_PORT }}/${{ env.DB_NAME }}" \
             -e SPRING_FLYWAY_USER="${{ env.DB_USERNAME }}" \
             -e SPRING_FLYWAY_PASSWORD="${{ env.DB_PASSWORD }}" \
             -e SPRING_REDIS_HOST="${{ env.REDIS_HOST }}" \
@@ -306,4 +312,3 @@ jobs:
             curl -X POST -H 'Content-type: application/json' \
             --data "{'text':'$STATUS: Autenticacao Self-hosted Deploy','attachments':[{'color':'$COLOR','fields':[{'title':'Branch','value':'${{ github.ref_name }}','short':true},{'title':'Commit','value':'${{ github.sha }}','short':true},{'title':'Deploy Method','value':'Self-hosted Runner (No SSH)','short':true}]}]}" \
             $SLACK_WEBHOOK_URL || echo "Slack notification failed or webhook not configured"
-          
