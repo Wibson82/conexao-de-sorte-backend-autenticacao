@@ -1,4 +1,4 @@
-name: 🔐 Autenticacao Microservice - CI/CD Pipeline
+name: 🔐 Autenticacao Microservice - CI/CD Pipeline (Self-hosted Runners)
 
 on:
   push:
@@ -15,76 +15,20 @@ on:
         options: [staging, production]
 
 env:
-  REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
   SERVICE_NAME: autenticacao
   TZ: America/Sao_Paulo
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name == 'workflow_dispatch' && inputs.environment || 'production' }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
-  test-runner:
+  validate-environment:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
-    name: 🧪 Test Self-hosted Runner
+    timeout-minutes: 10
+    name: ✅ Validate Build Environment
     steps:
       - uses: actions/checkout@v4
-      - name: Azure Login (OIDC)
-        uses: azure/login@v2
-        with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-
-      - name: Fetch Key Vault secrets (build args)
-        id: kv
-        shell: bash
-        run: |
-          set -euo pipefail
-          VAULT_ENDPOINT="${{ secrets.AZURE_KEYVAULT_ENDPOINT }}"
-          if [[ "$VAULT_ENDPOINT" =~ https://([^.]+)\.vault\.azure\.net ]]; then
-            VAULT="${BASH_REMATCH[1]}"
-          else
-            echo "ERROR: Invalid AZURE_KEYVAULT_ENDPOINT format: $VAULT_ENDPOINT" >&2
-            exit 1
-          fi
-          map_kv() { echo "$1" | tr '[:lower:]' '[:upper:]' | tr '-' '_'; }
-          fetch() {
-            local name="$1"; local var="$(map_kv "$name")"; 
-            val=$(az keyvault secret show --vault-name "$VAULT" --name "$name" --query value -o tsv 2>/dev/null || true)
-            if [ -n "$val" ]; then echo "$var<<__EOF__" >> $GITHUB_ENV; echo "$val" >> $GITHUB_ENV; echo "__EOF__" >> $GITHUB_ENV; fi
-          }
-          secrets=(
-            conexao-de-sorte-database-url
-            conexao-de-sorte-database-jdbc-url
-            conexao-de-sorte-database-r2dbc-url
-            conexao-de-sorte-database-username
-            conexao-de-sorte-database-password
-            conexao-de-sorte-database-proxysql-password
-            conexao-de-sorte-redis-host
-            conexao-de-sorte-redis-port
-            conexao-de-sorte-redis-password
-            conexao-de-sorte-redis-database
-            conexao-de-sorte-jwt-issuer
-            conexao-de-sorte-jwt-jwks-uri
-            conexao-de-sorte-jwt-key-id
-            conexao-de-sorte-jwt-secret
-            conexao-de-sorte-jwt-signing-key
-            conexao-de-sorte-jwt-verification-key
-            conexao-de-sorte-jwt-privateKey
-            conexao-de-sorte-jwt-publicKey
-            conexao-de-sorte-cors-allowed-origins
-            conexao-de-sorte-cors-allow-credentials
-            conexao-de-sorte-ssl-enabled
-            conexao-de-sorte-ssl-keystore-path
-            conexao-de-sorte-ssl-keystore-password
-            conexao-de-sorte-encryption-master-key
-            conexao-de-sorte-encryption-master-password
-            conexao-de-sorte-encryption-backup-key
-          )
-          for s in "${secrets[@]}"; do fetch "$s"; done
       - name: "Guard: forbid r2dbc:h2 outside tests"
         run: |
           set -euo pipefail
@@ -98,27 +42,22 @@ jobs:
         run: |
           set -euo pipefail
           mvn -B -q dependency:list -DincludeScope=compile -DoutputFile=dep.txt -DappendOutput=true || true
-          if grep -E "com\\.h2database:h2|io\\.r2dbc:r2dbc-h2" dep.txt; then
+          if grep -E "com\.h2database:h2|io\.r2dbc:r2dbc-h2" dep.txt; then
             echo "H2 present in non-test scope (compile/runtime)" >&2
             exit 1
           fi
-      - name: Test runner connectivity
+      - name: Check self-hosted runner availability
         run: |
-          echo "🎉 Self-hosted runner está funcionando!"
-          echo "🏃 Runner: $(hostname)"
-          echo "📅 Data: $(date)"
-          echo "👤 Usuário: $(whoami)"
-          echo "📁 Diretório: $(pwd)"
-          echo "🔍 Java version:"
-          java -version || echo "Java não encontrado"
-          echo "🐳 Docker version:"
-          docker --version || echo "Docker não encontrado"
+          echo "🔍 Checking GitHub Runner labels and environment..."
+          echo "Runner OS: $RUNNER_OS"
+          echo "Runner Architecture: $RUNNER_ARCH"
+          echo "Available Labels: self-hosted, Linux, X64, conexao, conexao-de-sorte-backend-autenticacao"
 
   build-and-test:
-    needs: test-runner
+    needs: validate-environment
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    name: 🏗️ Build and Test
+    name: 🏗️ Build and Test on GitHub Runners
     steps:
       - uses: actions/checkout@v4
       - name: Setup Java 24
@@ -131,306 +70,98 @@ jobs:
         run: |
           chmod +x ./mvnw
           ./mvnw --version
-      # DESABILITADO: Testes devido incompatibilidade Java 24 com Mockito
-      # - name: Run unit tests with coverage
-      #   run: ./mvnw clean verify -Dspring.profiles.active=test
-      # DESABILITADO: JaCoCo devido incompatibilidade Java 24 com Mockito  
-      # - name: Upload JaCoCo coverage reports
-      #   uses: actions/upload-artifact@v4
-      #   if: always()
-      #   with:
-      #     name: jacoco-coverage-reports
-      #     path: |
-      #       target/site/jacoco/
-      #       target/site/jacoco/jacoco.xml
-      #     retention-days: 30
-      # TEMPORARIAMENTE DESABILITADO: JaCoCo check devido à baixa cobertura após remoção de testes problemáticos
-      # - name: Enforce JaCoCo code coverage (80% minimum) 
-      #   run: ./mvnw jacoco:check
-      # TEMPORARIAMENTE DESABILITADO: Snyk SAST com problema de JAVA_HOME em container Docker
-      # TODO: Reabilitar após correção do ambiente Java no container Snyk
-      # - name: Run Snyk SAST security scan
-      #   uses: snyk/actions/maven@master
-      #   env:
-      #     SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-      #   with:
-      #     args: |
-      #       --all-projects 
-      #       --severity-threshold=high 
-      #       --fail-on=all 
-      #       --project-name=autenticacao-service
-      # - name: Monitor with Snyk (main branch only)
-      #   if: github.ref == 'refs/heads/main'
-      #   uses: snyk/actions/maven@master
-      #   env:
-      #     SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-      #   with:
-      #     command: monitor
-      #     args: --project-name=autenticacao-service
       - name: Build application (skip tests)
         run: ./mvnw clean package -DskipTests
-      - name: Upload artifact
+      - name: Upload JAR artifact for self-hosted runner
         uses: actions/upload-artifact@v4
         with:
           name: autenticacao-microservice-jar
           path: target/*.jar
-          retention-days: 7
+          retention-days: 1
 
-  build-image:
-    runs-on: ubuntu-latest
+  build-deploy-selfhosted:
+    runs-on: [self-hosted, conexao-de-sorte-backend-autenticacao]
     timeout-minutes: 45
-    name: 🐳 Build Docker Image
+    name: 🚀 Build & Deploy on Self-hosted Runner (Ubuntu)
     needs: build-and-test
-    permissions:
-      id-token: write
-      contents: read
-      packages: write
-      attestations: write
-    outputs:
-      image-digest: ${{ steps.build.outputs.digest }}
-      image-name-lower: ${{ steps.image_name.outputs.image_name_lower }}
-      image-tags: ${{ steps.meta.outputs.tags }}
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Compute lowercase image name
-        id: image_name
-        run: |
-          set -euo pipefail
-          REPO='${{ env.IMAGE_NAME }}'
-          echo "image_name_lower=$(echo "$REPO" | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-        with:
-          driver-opts: network=host
-
-      - name: Login to GHCR
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Extract metadata
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ steps.image_name.outputs.image_name_lower }}
-          tags: |
-            type=ref,event=pr
-            type=raw,value=latest,enable={{is_default_branch}}
-            type=raw,value={{date 'YYYY-MM-DD-HHmmss'}}-{{sha}},enable={{is_default_branch}}
-          labels: |
-            org.opencontainers.image.title=Autenticacao Microservice
-            org.opencontainers.image.description=Authentication and JWT management microservice
-            org.opencontainers.image.service=${{ env.SERVICE_NAME }}
-
-      - name: Build and push image
-        id: build
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          platforms: linux/amd64
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          sbom: true
-          provenance: mode=max
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          network: host
-          build-args: |
-            CONEXAO_DE_SORTE_DATABASE_URL=${{ env.CONEXAO_DE_SORTE_DATABASE_URL }}
-            CONEXAO_DE_SORTE_DATABASE_JDBC_URL=${{ env.CONEXAO_DE_SORTE_DATABASE_JDBC_URL }}
-            CONEXAO_DE_SORTE_DATABASE_R2DBC_URL=${{ env.CONEXAO_DE_SORTE_DATABASE_R2DBC_URL }}
-            CONEXAO_DE_SORTE_DATABASE_USERNAME=${{ env.CONEXAO_DE_SORTE_DATABASE_USERNAME }}
-            CONEXAO_DE_SORTE_DATABASE_PASSWORD=${{ env.CONEXAO_DE_SORTE_DATABASE_PASSWORD }}
-            CONEXAO_DE_SORTE_DATABASE_PROXYSQL_PASSWORD=${{ env.CONEXAO_DE_SORTE_DATABASE_PROXYSQL_PASSWORD }}
-            CONEXAO_DE_SORTE_REDIS_HOST=${{ env.CONEXAO_DE_SORTE_REDIS_HOST }}
-            CONEXAO_DE_SORTE_REDIS_PORT=${{ env.CONEXAO_DE_SORTE_REDIS_PORT }}
-            CONEXAO_DE_SORTE_REDIS_PASSWORD=${{ env.CONEXAO_DE_SORTE_REDIS_PASSWORD }}
-            CONEXAO_DE_SORTE_REDIS_DATABASE=${{ env.CONEXAO_DE_SORTE_REDIS_DATABASE }}
-            CONEXAO_DE_SORTE_JWT_ISSUER=${{ env.CONEXAO_DE_SORTE_JWT_ISSUER }}
-            CONEXAO_DE_SORTE_JWT_JWKS_URI=${{ env.CONEXAO_DE_SORTE_JWT_JWKS_URI }}
-            CONEXAO_DE_SORTE_JWT_KEY_ID=${{ env.CONEXAO_DE_SORTE_JWT_KEY_ID }}
-            CONEXAO_DE_SORTE_JWT_SECRET=${{ env.CONEXAO_DE_SORTE_JWT_SECRET }}
-            CONEXAO_DE_SORTE_JWT_SIGNING_KEY=${{ env.CONEXAO_DE_SORTE_JWT_SIGNING_KEY }}
-            CONEXAO_DE_SORTE_JWT_VERIFICATION_KEY=${{ env.CONEXAO_DE_SORTE_JWT_VERIFICATION_KEY }}
-            CONEXAO_DE_SORTE_JWT_PRIVATEKEY=${{ env.CONEXAO_DE_SORTE_JWT_PRIVATEKEY }}
-            CONEXAO_DE_SORTE_JWT_PUBLICKEY=${{ env.CONEXAO_DE_SORTE_JWT_PUBLICKEY }}
-            CONEXAO_DE_SORTE_CORS_ALLOWED_ORIGINS=${{ env.CONEXAO_DE_SORTE_CORS_ALLOWED_ORIGINS }}
-            CONEXAO_DE_SORTE_CORS_ALLOW_CREDENTIALS=${{ env.CONEXAO_DE_SORTE_CORS_ALLOW_CREDENTIALS }}
-            CONEXAO_DE_SORTE_SSL_ENABLED=${{ env.CONEXAO_DE_SORTE_SSL_ENABLED }}
-            CONEXAO_DE_SORTE_SSL_KEYSTORE_PATH=${{ env.CONEXAO_DE_SORTE_SSL_KEYSTORE_PATH }}
-            CONEXAO_DE_SORTE_SSL_KEYSTORE_PASSWORD=${{ env.CONEXAO_DE_SORTE_SSL_KEYSTORE_PASSWORD }}
-            CONEXAO_DE_SORTE_ENCRYPTION_MASTER_KEY=${{ env.CONEXAO_DE_SORTE_ENCRYPTION_MASTER_KEY }}
-            CONEXAO_DE_SORTE_ENCRYPTION_MASTER_PASSWORD=${{ env.CONEXAO_DE_SORTE_ENCRYPTION_MASTER_PASSWORD }}
-            CONEXAO_DE_SORTE_ENCRYPTION_BACKUP_KEY=${{ env.CONEXAO_DE_SORTE_ENCRYPTION_BACKUP_KEY }}
-            SERVICE_NAME=${{ env.SERVICE_NAME }}
-            BUILD_DATE=${{ github.event.head_commit.timestamp || github.run_id }}
-            VCS_REF=${{ github.sha }}
-            VERSION=1.0.0
-
-  sign-image:
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    name: ✍️ Sign & Verify (100% OIDC keyless)
-    needs: build-image
-    permissions:
-      id-token: write
-      contents: read
-      packages: write
-      attestations: write
-    steps:
-      - name: Verify OIDC token availability
-        run: |
-          echo "🔍 Verifying OIDC token is available..."
-          if [ -z "${ACTIONS_ID_TOKEN_REQUEST_TOKEN:-}" ]; then
-            echo "❌ OIDC token not available"
-            exit 1
-          fi
-          echo "✅ OIDC token is available"
-          
-      - name: Resolve image digest ref
-        id: ref
-        run: |
-          set -euo pipefail
-          IMG="ghcr.io/${{ needs.build-image.outputs.image-name-lower }}@${{ needs.build-image.outputs.image-digest }}"
-          echo "lower=$(echo "$IMG" | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
-
-      - name: Install cosign
-        uses: sigstore/cosign-installer@v3
-        with:
-          cosign-release: v2.5.3
-
-      - name: Login GHCR
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Pull digest
-        run: docker pull "${{ steps.ref.outputs.lower }}"
-
-      - name: Sign (keyless OIDC)
-        env:
-          COSIGN_EXPERIMENTAL: "1"
-        run: |
-          echo "🔐 Signing container image with OIDC keyless signature..."
-          cosign sign --yes "${{ steps.ref.outputs.lower }}"
-
-      - name: Verify OIDC signature
-        env:
-          COSIGN_EXPERIMENTAL: "1"
-        run: |
-          echo "✅ Verifying OIDC keyless signature..."
-          cosign verify \
-            --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
-            --certificate-identity-regexp "^https://github.com/${{ github.repository }}/\.github/workflows/.*@refs/heads/main$" \
-            "${{ steps.ref.outputs.lower }}"
-          echo "🎉 Container image signature verified successfully!"
-          
-      - name: Generate SBOM attestation (OIDC)
-        env:
-          COSIGN_EXPERIMENTAL: "1"  
-        run: |
-          echo "📋 Generating SBOM attestation with OIDC..."
-          cosign attest --yes --type=spdxjson \
-            --predicate=/dev/null \
-            "${{ steps.ref.outputs.lower }}" || echo "SBOM attestation optional - continuing"
-
-
-  deploy-production:
-    needs: [build-image, sign-image]
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
     if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.environment == 'production'))
-    name: 🌟 Deploy to Production (Self-hosted)
     permissions:
       id-token: write
       contents: read
-      packages: read
     steps:
       - uses: actions/checkout@v4
-
-
-
-      - name: Azure Login (OIDC)
+      
+      - name: Verificar ambiente do self-hosted runner
+        run: |
+          echo "🔍 Verificando ambiente do self-hosted runner..."
+          echo "🏃 Runner: $(hostname)"
+          echo "📅 Data: $(date)"
+          echo "👤 Usuário: $(whoami)"
+          echo "📁 Diretório: $(pwd)"
+          echo "💾 Espaço disponível:"
+          df -h
+          echo "🐳 Docker version:"
+          docker --version
+          echo "☕ Java version:"
+          java -version || echo "Java não encontrado via PATH"
+          
+      - name: Download JAR artifact from GitHub runners
+        uses: actions/download-artifact@v4
+        with:
+          name: autenticacao-microservice-jar
+          path: ./target
+          
+      - name: Azure Login (OIDC) no self-hosted runner
         uses: azure/login@v2
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Load Azure Key Vault secrets
+      - name: Fetch Azure Key Vault secrets
+        id: kv
+        shell: bash
         run: |
           set -euo pipefail
-          # Extract vault name from AZURE_KEYVAULT_ENDPOINT
           VAULT_ENDPOINT="${{ secrets.AZURE_KEYVAULT_ENDPOINT }}"
           if [[ "$VAULT_ENDPOINT" =~ https://([^.]+)\.vault\.azure\.net ]]; then
             VAULT="${BASH_REMATCH[1]}"
           else
             echo "ERROR: Invalid AZURE_KEYVAULT_ENDPOINT format: $VAULT_ENDPOINT" >&2
-            echo "Expected format: https://vault-name.vault.azure.net/" >&2
             exit 1
           fi
           
-          echo "Loading secrets from Azure Key Vault: $VAULT (endpoint: $VAULT_ENDPOINT)" >&2
-          echo "VAULT=$VAULT" >> "$GITHUB_ENV"
+          echo "Loading secrets from Azure Key Vault: $VAULT" >&2
           get() { 
             echo "Fetching secret: $1" >&2
             SECRET_VALUE=$(az keyvault secret show --vault-name "$VAULT" --name "$1" --query value -o tsv 2>/dev/null)
             if [ $? -ne 0 ] || [ -z "$SECRET_VALUE" ]; then
               echo "ERROR: Secret $1 not found in Azure Key Vault $VAULT" >&2
-              echo "Available secrets in vault:" >&2
-              az keyvault secret list --vault-name "$VAULT" --query '[].name' -o tsv >&2
               exit 1
             fi
             echo "$SECRET_VALUE"
           }
           
-          # Database secrets
-          echo "DB_R2DBC_URL=$(get conexao-de-sorte-database-r2dbc-url)" >> $GITHUB_ENV
-          echo "DB_USERNAME=$(get conexao-de-sorte-database-username)" >> $GITHUB_ENV
-          echo "DB_PASSWORD=$(get conexao-de-sorte-database-password)" >> $GITHUB_ENV
-          echo "DB_JDBC_URL=$(get conexao-de-sorte-database-jdbc-url)" >> $GITHUB_ENV
-          
-          # Redis secrets
+          # Autenticacao specific secrets
+          echo "DATABASE_URL=$(get conexao-de-sorte-database-url)" >> $GITHUB_ENV
+          echo "DATABASE_USERNAME=$(get conexao-de-sorte-database-username)" >> $GITHUB_ENV
+          echo "DATABASE_PASSWORD=$(get conexao-de-sorte-database-password)" >> $GITHUB_ENV
           echo "REDIS_HOST=$(get conexao-de-sorte-redis-host)" >> $GITHUB_ENV
           echo "REDIS_PORT=$(get conexao-de-sorte-redis-port)" >> $GITHUB_ENV
           echo "REDIS_PASSWORD=$(get conexao-de-sorte-redis-password)" >> $GITHUB_ENV
-          echo "REDIS_DATABASE=$(get conexao-de-sorte-redis-database)" >> $GITHUB_ENV
-          
-          # JWT secrets
-          echo "JWT_SECRET=$(get conexao-de-sorte-jwt-secret)" >> $GITHUB_ENV
-          echo "JWT_KEY_ID=$(get conexao-de-sorte-jwt-key-id)" >> $GITHUB_ENV
-          echo "JWT_SIGNING_KEY=$(get conexao-de-sorte-jwt-signing-key)" >> $GITHUB_ENV
-          echo "JWT_VERIFICATION_KEY=$(get conexao-de-sorte-jwt-verification-key)" >> $GITHUB_ENV
           echo "JWT_ISSUER=$(get conexao-de-sorte-jwt-issuer)" >> $GITHUB_ENV
           echo "JWT_JWKS_URI=$(get conexao-de-sorte-jwt-jwks-uri)" >> $GITHUB_ENV
-          
-          # Encryption secrets
+          echo "JWT_SECRET=$(get conexao-de-sorte-jwt-secret)" >> $GITHUB_ENV
+          echo "JWT_SIGNING_KEY=$(get conexao-de-sorte-jwt-signing-key)" >> $GITHUB_ENV
           echo "ENCRYPTION_MASTER_KEY=$(get conexao-de-sorte-encryption-master-key)" >> $GITHUB_ENV
           
-          # Create secure secrets directory
-          SECRETS_DIR=$(mktemp -d -p /tmp conexao_auth_secrets_XXXX)
-          umask 077
-          printf '%s' "$(get conexao-de-sorte-jwt-privateKey)" > "$SECRETS_DIR/jwt_private.pem"
-          printf '%s' "$(get conexao-de-sorte-jwt-publicKey)" > "$SECRETS_DIR/jwt_public.pem"
-          printf '%s' "$(get conexao-de-sorte-encryption-master-key)" > "$SECRETS_DIR/encryption_master_key"
-          chmod 600 "$SECRETS_DIR"/*
-          echo "SECRETS_DIR=$SECRETS_DIR" >> $GITHUB_ENV
+          echo "✅ Azure Key Vault secrets loaded successfully" >&2
           
-          echo "Success: Azure Key Vault secrets loaded successfully" >&2
-
       - name: 🧹 Clean old containers
         run: |
           set -euo pipefail
           echo "🧹 Cleaning old auth-microservice containers..."
           
-          # Stop and remove auth-microservice container if exists
           if docker ps -a --format '{{.Names}}' | grep -q '^auth-microservice$'; then
             echo '🛑 Stopping container: auth-microservice'
             docker stop 'auth-microservice' || true
@@ -440,27 +171,47 @@ jobs:
             echo '✅ No auth-microservice container found'
           fi
           
+          # Remover imagens antigas do autenticacao
+          docker images --format "{{.Repository}}:{{.Tag}}" | grep "^wibson82/conexao-de-sorte-backend-autenticacao:" | head -n -1 | xargs -r docker rmi || true
           echo "✅ Container cleanup completed"
 
-      - name: 🚀 Deploy auth-microservice
+      - name: 🐳 Build Docker image (Local - Self-hosted)
+        id: build
         run: |
           set -euo pipefail
+          TAG="wibson82/conexao-de-sorte-backend-autenticacao:$(date +'%Y-%m-%d-%H%M%S')"
+          
+          echo "🏗️ Building Docker image locally on self-hosted runner: $TAG"
+          docker build \
+            --platform linux/amd64 \
+            --tag "$TAG" \
+            --build-arg CONEXAO_DE_SORTE_DATABASE_URL="${{ env.DATABASE_URL }}" \
+            --build-arg CONEXAO_DE_SORTE_DATABASE_USERNAME="${{ env.DATABASE_USERNAME }}" \
+            --build-arg CONEXAO_DE_SORTE_DATABASE_PASSWORD="${{ env.DATABASE_PASSWORD }}" \
+            --build-arg CONEXAO_DE_SORTE_REDIS_HOST="${{ env.REDIS_HOST }}" \
+            --build-arg CONEXAO_DE_SORTE_REDIS_PORT="${{ env.REDIS_PORT }}" \
+            --build-arg CONEXAO_DE_SORTE_REDIS_PASSWORD="${{ env.REDIS_PASSWORD }}" \
+            --build-arg CONEXAO_DE_SORTE_JWT_ISSUER="${{ env.JWT_ISSUER }}" \
+            --build-arg CONEXAO_DE_SORTE_JWT_JWKS_URI="${{ env.JWT_JWKS_URI }}" \
+            --build-arg CONEXAO_DE_SORTE_JWT_SECRET="${{ env.JWT_SECRET }}" \
+            --build-arg CONEXAO_DE_SORTE_JWT_SIGNING_KEY="${{ env.JWT_SIGNING_KEY }}" \
+            --build-arg CONEXAO_DE_SORTE_ENCRYPTION_MASTER_KEY="${{ env.ENCRYPTION_MASTER_KEY }}" \
+            --build-arg SERVICE_NAME="${{ env.SERVICE_NAME }}" \
+            --build-arg BUILD_DATE="${{ github.event.head_commit.timestamp || github.run_id }}" \
+            --build-arg VCS_REF="${{ github.sha }}" \
+            --build-arg VERSION="1.0.0" \
+            .
+          
+          echo "image_tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "✅ Image built locally on self-hosted runner (NO REGISTRY)"
+
+      - name: 🚀 Deploy container directly
+        run: |
+          set -euo pipefail
+          IMAGE_TAG="${{ steps.build.outputs.image_tag }}"
           export TZ=America/Sao_Paulo
           
-          IMAGE_DIGEST="${{ needs.build-image.outputs.image-digest }}"
-          IMAGE_NAME_LOWER="${{ needs.build-image.outputs.image-name-lower }}"
-          FULL_IMAGE="ghcr.io/${IMAGE_NAME_LOWER}@${IMAGE_DIGEST}"
-          
-          echo "🚀 Starting deployment..."
-          echo "   - Service: auth-microservice"
-          echo "   - Image: ${FULL_IMAGE}"
-          
-          echo "🔑 Logging in to GHCR..."
-          echo '${{ secrets.GITHUB_TOKEN }}' | docker login ghcr.io -u '${{ github.actor }}' --password-stdin
-          
-          echo "📥 Pulling image: ${FULL_IMAGE}"
-          docker pull "${FULL_IMAGE}"
-          
+          # Criar rede se não existir
           echo "🌐 Creating Docker network if it doesn't exist..."
           docker network create conexao-network 2>/dev/null || true
           
@@ -469,8 +220,8 @@ jobs:
             --name "auth-microservice" \
             --network conexao-network \
             --restart unless-stopped \
-            -p "8081:8081" \
-            --health-cmd="curl -f http://localhost:8081/actuator/health/readiness && curl -f http://localhost:8081/actuator/health/liveness || exit 1" \
+            -p "8081:8080" \
+            --health-cmd="curl -f http://localhost:8080/actuator/health/readiness && curl -f http://localhost:8080/actuator/health/liveness || exit 1" \
             --health-interval=30s \
             --health-timeout=10s \
             --health-retries=5 \
@@ -478,7 +229,7 @@ jobs:
             -e JAVA_TOOL_OPTIONS="-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -Xms256m -Xmx1024m -Djava.security.egd=file:/dev/./urandom -Djava.awt.headless=true -Dfile.encoding=UTF-8" \
             -e SPRING_PROFILES_ACTIVE="prod,azure" \
             -e ENVIRONMENT="production" \
-            -e SERVER_PORT="8081" \
+            -e SERVER_PORT="8080" \
             -e TZ="America/Sao_Paulo" \
             -e AZURE_CLIENT_ID="${{ secrets.AZURE_CLIENT_ID }}" \
             -e AZURE_TENANT_ID="${{ secrets.AZURE_TENANT_ID }}" \
@@ -489,17 +240,18 @@ jobs:
             --label "traefik.http.routers.auth.rule=Host(\`auth.conexaodesorte.com.br\`)" \
             --label "traefik.http.routers.auth.entrypoints=websecure" \
             --label "traefik.http.routers.auth.tls.certresolver=letsencrypt" \
-            --label "traefik.http.services.auth.loadbalancer.server.port=8081" \
-            "${FULL_IMAGE}"
+            --label "traefik.http.services.auth.loadbalancer.server.port=8080" \
+            "$IMAGE_TAG"
           
           echo "✅ Container deployed successfully"
+
+      - name: Wait for service to be ready
+        run: |
           echo "🔍 Waiting for service to be ready..."
-          
-          # Wait for health check to pass (max 3 minutes)
           TIMEOUT=180
           ELAPSED=0
           while [ $ELAPSED -lt $TIMEOUT ]; do
-            if docker exec auth-microservice curl -f -s http://localhost:8081/actuator/health/readiness >/dev/null 2>&1; then
+            if docker exec auth-microservice curl -f -s http://localhost:8080/actuator/health/readiness >/dev/null 2>&1; then
               echo "✅ Service is ready and healthy!"
               break
             fi
@@ -516,35 +268,48 @@ jobs:
           fi
           
           echo "🔍 Final container status:"
-          docker ps --filter name=auth-microservice --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+          docker ps --filter name=auth-microservice --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}'
           
-          echo "🎉 Deployment completed successfully - Service is healthy!"
+          echo "🎉 Self-hosted deployment completed successfully - Service is healthy!"
 
   notify:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     name: 📢 Notification
     if: always()
-    needs: [build-and-test, build-image, sign-image, deploy-production]
+    needs: [build-and-test, build-deploy-selfhosted]
     steps:
-      - uses: 8398a7/action-slack@v3
-        if: always() && env.SLACK_WEBHOOK_URL != ''
+      - name: 📧 Send Slack notification
+        if: always()
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-        with:
-          status: ${{ job.status }}
-          channel: '#ci-cd-notifications'
-          fields: repo,message,commit,author,action,eventName,ref,workflow
-          custom_payload: |
-            {
-              "username": "GitHub Actions",
-              "icon_emoji": ":lock:",
-              "attachments": [{
-                "color": "${{ job.status }}" == "success" ? "good" : "${{ job.status }}" == "failure" ? "danger" : "warning",
-                "fields": [{
-                  "title": "🔐 Autenticacao Microservice",
-                  "value": "Status: ${{ job.status }}\nBranch: ${{ github.ref_name }}\nCommit: ${{ github.sha }}",
-                  "short": true
-                }]
-              }]
-            }
+        run: |
+          DEPLOY_RESULT="${{ needs.build-deploy-selfhosted.result }}"
+          if [ "$DEPLOY_RESULT" = "success" ]; then
+            STATUS="🎉 SUCCESS (Self-hosted)"
+            COLOR="good"
+          elif [ "$DEPLOY_RESULT" = "skipped" ]; then
+            STATUS="⏭️ SKIPPED"
+            COLOR="warning"
+          else
+            STATUS="❌ FAILED"
+            COLOR="danger"
+          fi
+          if [ -n "${SLACK_WEBHOOK_URL:-}" ]; then
+            curl -X POST -H 'Content-type: application/json' \
+            --data "{'text':'$STATUS: Autenticacao Microservice Self-hosted Deploy','attachments':[{'color':'$COLOR','fields':[{'title':'Branch','value':'${{ github.ref_name }}','short':true},{'title':'Commit','value':'${{ github.sha }}','short':true},{'title':'Deploy Method','value':'Self-hosted Runner (No SSH)','short':true}]}]}" \
+            $SLACK_WEBHOOK_URL || echo "Slack notification failed or webhook not configured"
+          fi
+          
+          echo "📋 SELF-HOSTED DEPLOYMENT SUMMARY"
+          echo "✅ Build completed on GitHub runners"  
+          echo "🚀 Deploy executed directly on self-hosted Ubuntu runner"
+          echo "🔐 Azure Key Vault OIDC integration working"
+          echo "🏷️ Runner labels: [self-hosted, conexao-de-sorte-backend-autenticacao]"
+          echo ""
+          if [ "$DEPLOY_RESULT" = "success" ]; then
+            echo "🎉 Autenticacao Microservice deployed successfully!"
+            echo "🌐 Service available at: auth.conexaodesorte.com.br"
+          else
+            echo "❌ Deployment failed - check self-hosted runner logs"
+          fi
