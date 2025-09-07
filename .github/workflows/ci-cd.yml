@@ -30,6 +30,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: "Guard: forbid r2dbc:h2 outside tests"
+        timeout-minutes: 10
         run: |
           set -euo pipefail
           FOUND=$(grep -R --line-number --include='*.yml' --include='*.properties' --include='*.yaml' "r2dbc:h2" src || true)
@@ -39,6 +40,7 @@ jobs:
             exit 1
           fi
       - name: "Guard: H2 not in non-test scopes"
+        timeout-minutes: 10
         run: |
           set -euo pipefail
           mvn -B -q dependency:list -DincludeScope=compile -DoutputFile=dep.txt -DappendOutput=true || true
@@ -47,32 +49,42 @@ jobs:
             exit 1
           fi
       - name: Check self-hosted runner availability
+        timeout-minutes: 10
         run: |
           echo "🔍 Checking GitHub Runner labels and environment..."
           echo "Runner OS: $RUNNER_OS"
           echo "Runner Architecture: $RUNNER_ARCH"
-          echo "Available Labels: self-hosted, Linux, X64, conexao, conexao-de-sorte-backend-autenticacao"
+          echo "Expected Labels: [self-hosted, conexao-de-sorte-backend-autenticacao]"
+          echo "Note: This validation runs on GitHub runners, actual deployment uses self-hosted runners"
+          echo "⚠️ Verify that the self-hosted runner is registered with exactly these labels:"
+          echo "  - self-hosted"
+          echo "  - conexao-de-sorte-backend-autenticacao"
+          echo "📋 Runner registration command should include: --labels self-hosted,conexao-de-sorte-backend-autenticacao"
 
   build-and-test:
     needs: validate-environment
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 10
     name: 🏗️ Build and Test on GitHub Runners
     steps:
       - uses: actions/checkout@v4
       - name: Setup Java 24
+        timeout-minutes: 10
         uses: actions/setup-java@v4
         with:
           java-version: '24'
           distribution: 'temurin'
           cache: maven
       - name: Verify Maven wrapper
+        timeout-minutes: 10
         run: |
           chmod +x ./mvnw
           ./mvnw --version
       - name: Build application (skip tests)
+        timeout-minutes: 10
         run: ./mvnw clean package -DskipTests
       - name: Upload JAR artifact for self-hosted runner
+        timeout-minutes: 10
         uses: actions/upload-artifact@v4
         with:
           name: autenticacao-microservice-jar
@@ -81,7 +93,7 @@ jobs:
 
   build-deploy-selfhosted:
     runs-on: self-hosted
-    timeout-minutes: 45
+    timeout-minutes: 10
     name: 🚀 Build & Deploy on Self-hosted Runner (Ubuntu)
     needs: build-and-test
     if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.environment == 'production'))
@@ -92,6 +104,7 @@ jobs:
       - uses: actions/checkout@v4
       
       - name: Verificar ambiente do self-hosted runner
+        timeout-minutes: 10
         run: |
           echo "🔍 Verificando ambiente do self-hosted runner..."
           echo "🏃 Runner: $(hostname)"
@@ -106,12 +119,14 @@ jobs:
           java -version || echo "Java não encontrado via PATH"
           
       - name: Download JAR artifact from GitHub runners
+        timeout-minutes: 10
         uses: actions/download-artifact@v4
         with:
           name: autenticacao-microservice-jar
           path: ./target
           
       - name: Azure Login (OIDC) no self-hosted runner
+        timeout-minutes: 10
         uses: azure/login@v2
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
@@ -120,6 +135,7 @@ jobs:
 
       - name: Fetch Azure Key Vault secrets
         id: kv
+        timeout-minutes: 10
         shell: bash
         run: |
           set -euo pipefail
@@ -158,6 +174,7 @@ jobs:
           echo "✅ Azure Key Vault secrets loaded successfully" >&2
           
       - name: 🧹 Clean old containers
+        timeout-minutes: 10
         run: |
           set -euo pipefail
           echo "🧹 Cleaning old auth-microservice containers..."
@@ -177,6 +194,7 @@ jobs:
 
       - name: 🐳 Build Docker image (Local - Self-hosted)
         id: build
+        timeout-minutes: 10
         run: |
           set -euo pipefail
           TAG="wibson82/conexao-de-sorte-backend-autenticacao:$(date +'%Y-%m-%d-%H%M%S')"
@@ -206,6 +224,7 @@ jobs:
           echo "✅ Image built locally on self-hosted runner (NO REGISTRY)"
 
       - name: 🚀 Deploy container directly
+        timeout-minutes: 10
         run: |
           set -euo pipefail
           IMAGE_TAG="${{ steps.build.outputs.image_tag }}"
@@ -246,6 +265,7 @@ jobs:
           echo "✅ Container deployed successfully"
 
       - name: Wait for service to be ready
+        timeout-minutes: 10
         run: |
           echo "🔍 Waiting for service to be ready..."
           TIMEOUT=180
@@ -281,6 +301,7 @@ jobs:
     steps:
       - name: 📧 Send Slack notification
         if: always()
+        timeout-minutes: 10
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
         run: |
