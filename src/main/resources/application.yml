@@ -97,7 +97,7 @@ server:
   
   # SSL/TLS Configuration
   ssl:
-    enabled: ${conexao-de-sorte-ssl-enabled:false}
+    enabled: false  # TLS termina no Traefik (ACME) - forçar false
     key-store: ${conexao-de-sorte-ssl-keystore-path:}
     key-store-password: ${conexao-de-sorte-ssl-keystore-password:}
     key-store-type: PKCS12
@@ -290,7 +290,7 @@ spring:
 # Configurações específicas de produção (sobrescrevendo padrões)
 server:
   ssl:
-    enabled: ${conexao-de-sorte-ssl-enabled:false}  # TLS termina no Traefik (ACME)
+    enabled: false  # TLS termina no Traefik (ACME) - forçar false
       
 app:
   jwt:
