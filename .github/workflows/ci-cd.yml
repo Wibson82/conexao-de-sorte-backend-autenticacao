@@ -92,7 +92,7 @@ jobs:
           retention-days: 1
 
   build-deploy-selfhosted:
-    runs-on: self-hosted
+    runs-on: [self-hosted]
     timeout-minutes: 10
     name: 🚀 Build & Deploy on Self-hosted Runner (Ubuntu)
     needs: build-and-test
