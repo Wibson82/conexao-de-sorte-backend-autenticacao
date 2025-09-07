@@ -80,7 +80,7 @@ jobs:
           retention-days: 1
 
   build-deploy-selfhosted:
-    runs-on: [self-hosted, conexao-de-sorte-backend-autenticacao]
+    runs-on: self-hosted
     timeout-minutes: 45
     name: 🚀 Build & Deploy on Self-hosted Runner (Ubuntu)
     needs: build-and-test
