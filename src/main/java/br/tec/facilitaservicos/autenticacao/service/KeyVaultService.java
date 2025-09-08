@@ -5,7 +5,11 @@ import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
+import java.time.Duration;
+import java.time.LocalDateTime;
 import java.util.Base64;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -86,6 +90,12 @@ public class KeyVaultService {
     private static final String FALLBACK_KEY_ID_MSG = "Fallback para ID da chave padrão devido ao erro: {}";
 
     private final SecretClient secretClient;
+    private final KeyVaultMonitoringService monitoringService;
+    private final ConcurrentMap<String, String> secretCache = new ConcurrentHashMap<>();
+    private final ConcurrentMap<String, LocalDateTime> cacheTimestamps = new ConcurrentHashMap<>();
+    
+    // Cache expiry time in minutes
+    private static final long CACHE_EXPIRY_MINUTES = 15;
     
     @Value("${jwt.key-vault.private-key-name:jwt-private-key}")
     private String privateKeyName;
@@ -139,17 +149,32 @@ public class KeyVaultService {
     
     private static final String FALLBACK_KEY_ID = "fallback-key-id";
     
-    public KeyVaultService(@Value("${spring.cloud.azure.keyvault.secret.endpoint:}") String keyVaultUri) {
+    public KeyVaultService(@Value("${spring.cloud.azure.keyvault.secret.endpoint:}") String keyVaultUri, 
+                          KeyVaultMonitoringService monitoringService) {
+        this.monitoringService = monitoringService;
         // Programação defensiva: validação de parâmetros
         SecretClient tempSecretClient = null;
 
         if (keyVaultEnabled && keyVaultUri != null && !keyVaultUri.trim().isEmpty()) {
             try {
+                // Obter credenciais das variáveis de ambiente (injetadas pelo CI/CD via OIDC)
+                String runtimeClientId = System.getenv("AZURE_CLIENT_ID");
+                String runtimeTenantId = System.getenv("AZURE_TENANT_ID");
+                String runtimeEndpoint = System.getenv("AZURE_KEYVAULT_ENDPOINT");
+                
+                // Usar endpoint das variáveis de ambiente se disponível
+                String effectiveEndpoint = (runtimeEndpoint != null && !runtimeEndpoint.trim().isEmpty()) 
+                    ? runtimeEndpoint.trim() : keyVaultUri.trim();
+                
                 tempSecretClient = new SecretClientBuilder()
-                    .vaultUrl(keyVaultUri.trim())
+                    .vaultUrl(effectiveEndpoint)
                     .credential(new DefaultAzureCredentialBuilder().build())
                     .buildClient();
-                logger.info(LOG_KEYVAULT_CONFIGURED, keyVaultUri);
+                
+                logger.info("✅ Azure Key Vault configurado com sucesso: {}", 
+                    effectiveEndpoint.replaceAll("([^/]+)\\.vault\\.azure\\.net", "*****.vault.azure.net"));
+                logger.info("   Client ID: {}", maskCredential(runtimeClientId));
+                logger.info("   Tenant ID: {}", maskCredential(runtimeTenantId));
             } catch (Exception e) {
                 logger.error("❌ Erro ao configurar Azure Key Vault: {}", e.getMessage(), e);
                 tempSecretClient = null;
@@ -433,8 +458,9 @@ public class KeyVaultService {
     }
     
     /**
-     * Método para obter secret genérico do Key Vault.
+     * Método para obter secret genérico do Key Vault com cache e monitoramento.
      */
+    @Cacheable(value = "keyvault-secrets", key = "#secretName", unless = "#result == null")
     public Mono<String> getSecret(String secretName) {
         logger.debug("Obtendo secret: {}", secretName);
         
@@ -442,6 +468,19 @@ public class KeyVaultService {
             logger.warn("Azure Key Vault não disponível, retornando fallback para: {}", secretName);
             return Mono.just("fallback-" + secretName);
         }
+        
+        // Verificar cache primeiro
+        String cachedValue = secretCache.get(secretName);
+        LocalDateTime cacheTime = cacheTimestamps.get(secretName);
+        
+        if (cachedValue != null && cacheTime != null && 
+            Duration.between(cacheTime, LocalDateTime.now()).toMinutes() < CACHE_EXPIRY_MINUTES) {
+            monitoringService.recordCacheHit(secretName);
+            logger.debug("✅ Secret encontrado no cache: {}", secretName);
+            return Mono.just(cachedValue);
+        }
+        
+        monitoringService.recordCacheMiss(secretName);
         
         return Mono.fromCallable(() -> {
             try {
@@ -455,13 +494,55 @@ public class KeyVaultService {
                     throw new KeyVaultException("Secret não encontrado: " + secretName);
                 }
                 
-                return secret.getValue();
+                String value = secret.getValue();
+                
+                // Atualizar cache
+                secretCache.put(secretName, value);
+                cacheTimestamps.put(secretName, LocalDateTime.now());
+                
+                logger.debug("✅ Secret {} obtido com sucesso", secretName);
+                return value;
             } catch (Exception e) {
-                logger.error("Erro ao obter secret {}: {}", secretName, e.getMessage());
+                logger.error("❌ Erro ao obter secret {}: {}", secretName, e.getMessage());
                 throw new KeyVaultException("Falha ao obter secret: " + secretName, e);
             }
         })
         .subscribeOn(Schedulers.boundedElastic())
+        .transform(mono -> monitoringService.monitorSecretAccess(secretName, "GET_SECRET", mono))
         .onErrorReturn("fallback-" + secretName);
+    }
+    
+    /**
+     * Obtém fallback para secret específico.
+     */
+    private String getFallbackSecret(String secretName) {
+        // Implementar lógica de fallback baseada no nome do secret
+        switch (secretName) {
+            case "jwt-private-key":
+                return FALLBACK_PRIVATE_KEY;
+            case "jwt-public-key":
+                return FALLBACK_PUBLIC_KEY;
+            case "jwt-key-id":
+                return FALLBACK_KEY_ID;
+            default:
+                return null;
+        }
+    }
+    
+    /**
+     * Limpa cache de secrets.
+     */
+    public void clearSecretCache() {
+        secretCache.clear();
+        cacheTimestamps.clear();
+        logger.info("Cache de secrets limpo");
+    }
+    
+    /**
+     * Mascarar credenciais para logs de segurança.
+     */
+    private String maskCredential(String credential) {
+        if (credential == null || credential.length() < 8) return "N/A";
+        return credential.substring(0, 4) + "****" + credential.substring(credential.length() - 4);
     }
 }

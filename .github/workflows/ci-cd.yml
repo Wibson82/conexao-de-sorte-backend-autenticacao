@@ -156,6 +156,13 @@ jobs:
           echo "DB_PORT=$(get conexao-de-sorte-database-port)" >> $GITHUB_ENV
           echo "DB_USERNAME=$(get conexao-de-sorte-database-username)" >> $GITHUB_ENV
           echo "DB_PASSWORD=$(get conexao-de-sorte-database-password)" >> $GITHUB_ENV
+          echo "JWT_SIGNING_KEY=$(get conexao-de-sorte-jwt-signing-key)" >> $GITHUB_ENV
+          echo "JWT_VERIFICATION_KEY=$(get conexao-de-sorte-jwt-verification-key)" >> $GITHUB_ENV
+          echo "JWT_KEY_ID=$(get conexao-de-sorte-jwt-key-id)" >> $GITHUB_ENV
+          echo "ENCRYPTION_MASTER_KEY=$(get conexao-de-sorte-encryption-master-key)" >> $GITHUB_ENV
+          echo "ENCRYPTION_BACKUP_KEY=$(get conexao-de-sorte-encryption-backup-key)" >> $GITHUB_ENV
+          echo "SSL_KEYSTORE_PASSWORD=$(get conexao-de-sorte-ssl-keystore-password)" >> $GITHUB_ENV
+          echo "CORS_ALLOWED_ORIGINS=$(get conexao-de-sorte-cors-allowed-origins)" >> $GITHUB_ENV
           
           echo "✅ Azure Key Vault secrets loaded successfully" >&2
           
@@ -243,6 +250,13 @@ jobs:
             -e SPRING_REDIS_PASSWORD="${{ env.REDIS_PASSWORD }}" \
             -e SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI="${{ env.JWT_ISSUER }}" \
             -e SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI="${{ env.JWT_JWKS_URI }}" \
+            -e JWT_SIGNING_KEY="${{ env.JWT_SIGNING_KEY }}" \
+            -e JWT_VERIFICATION_KEY="${{ env.JWT_VERIFICATION_KEY }}" \
+            -e JWT_KEY_ID="${{ env.JWT_KEY_ID }}" \
+            -e ENCRYPTION_MASTER_KEY="${{ env.ENCRYPTION_MASTER_KEY }}" \
+            -e ENCRYPTION_BACKUP_KEY="${{ env.ENCRYPTION_BACKUP_KEY }}" \
+            -e SSL_KEYSTORE_PASSWORD="${{ env.SSL_KEYSTORE_PASSWORD }}" \
+            -e CORS_ALLOWED_ORIGINS="${{ env.CORS_ALLOWED_ORIGINS }}" \
             --label "traefik.enable=true" \
             --label "traefik.docker.network=conexao-network" \
             --label "traefik.http.routers.${{ env.SERVICE_NAME }}.rule=Host(\"${{ env.SERVICE_NAME }}.conexaodesorte.com.br\")" \
