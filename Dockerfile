@@ -215,7 +215,7 @@ FROM runtime AS debug
 # Configurar debug remoto
 ENV JAVA_OPTS="$JAVA_OPTS \
     -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005 \
-    -Dspring.profiles.active=dev \
+    -Dspring.profiles.active=prod \
     -Dlogging.level.br.tec.facilitaservicos=DEBUG"
 
 # Expor porta de debug

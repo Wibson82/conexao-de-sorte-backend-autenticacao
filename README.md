@@ -133,7 +133,7 @@ open http://localhost:8081/swagger-ui.html
 docker-compose up -d mysql redis
 
 # Executar aplicação
-./mvnw spring-boot:run -Dspring-boot.run.profiles=dev
+./mvnw spring-boot:run -Dspring-boot.run.profiles=prod
 ```
 
 ## 🔧 Configuração

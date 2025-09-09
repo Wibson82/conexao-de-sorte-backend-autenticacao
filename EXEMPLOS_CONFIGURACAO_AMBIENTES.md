@@ -218,7 +218,7 @@ services:
     container_name: auth-service-dev
     restart: unless-stopped
     environment:
-      - SPRING_PROFILES_ACTIVE=dev
+      - SPRING_PROFILES_ACTIVE=prod
       - SERVER_PORT=8080
       - LOGGING_LEVEL_ROOT=DEBUG
     ports:
@@ -473,9 +473,9 @@ jobs:
 ### 7.1 Desenvolvimento
 
 ```bash
-# .env.dev
-ENVIRONMENT=dev
-SPRING_PROFILES_ACTIVE=dev
+# .env.prod
+ENVIRONMENT=prod
+SPRING_PROFILES_ACTIVE=prod
 LOGGING_LEVEL_ROOT=DEBUG
 SERVER_PORT=8080
 MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE=*
