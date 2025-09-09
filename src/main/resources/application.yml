@@ -50,12 +50,12 @@ spring:
     azure:
       keyvault:
         secret:
-          enabled: ${AZURE_KEYVAULT_ENABLED}
-          endpoint: ${AZURE_KEYVAULT_ENDPOINT}
+          enabled: ${conexao-de-sorte-azure-keyvault-enabled}
+          endpoint: ${conexao-de-sorte-azure-keyvault-endpoint}
       profile:
-        tenant-id: ${AZURE_TENANT_ID}
-        subscription-id: ${AZURE_SUBSCRIPTION_ID}
-        client-id: ${AZURE_CLIENT_ID}
+        tenant-id: ${conexao-de-sorte-azure-tenant-id}
+        subscription-id: ${conexao-de-sorte-azure-subscription-id}
+        client-id: ${conexao-de-sorte-azure-client-id}
   
   # Configtree secret management
   config:
@@ -89,7 +89,7 @@ spring:
     validate-on-migrate: false
 
 user-service:
-  url: ${USER_SERVICE_URL}
+  url: ${conexao-de-sorte-user-service-url}
 
 # Server Configuration (aplicável a todos os perfis)
 server:
@@ -151,39 +151,39 @@ management:
   tracing:
     enabled: true
     sampling:
-      probability: ${TRACING_PROBABILITY}
+      probability: ${conexao-de-sorte-tracing-probability}
 
 # Custom Application Properties
 app:
   # JWT Configuration with secure secret management
   jwt:
     # Duracao dos tokens (em segundos)
-    access-token-validity: ${JWT_ACCESS_TOKEN_VALIDITY}  # Configurado via Key Vault
-    refresh-token-validity: ${JWT_REFRESH_TOKEN_VALIDITY}  # Configurado via Key Vault
+    access-token-validity: ${conexao-de-sorte-jwt-access-token-validity}
+    refresh-token-validity: ${conexao-de-sorte-jwt-refresh-token-validity}
     
     # Azure Key Vault keys - using secure naming
     key-vault:
-      enabled: ${JWT_KEYVAULT_ENABLED}
-      private-key-name: ${JWT_PRIVATE_KEY_NAME}
-      public-key-name: ${JWT_PUBLIC_KEY_NAME}
-      key-id-name: ${JWT_KEY_ID_NAME}
-      secret-name: ${JWT_SECRET_NAME}
+      enabled: ${conexao-de-sorte-jwt-keyvault-enabled}
+      private-key-name: ${conexao-de-sorte-jwt-private-key-name}
+      public-key-name: ${conexao-de-sorte-jwt-public-key-name}
+      key-id-name: ${conexao-de-sorte-jwt-key-id-name}
+      secret-name: ${conexao-de-sorte-jwt-secret-name}
       
     # Configuração segura - apenas Azure Key Vault, sem fallbacks
     # Removido fallback inseguro para forçar uso exclusivo do Key Vault
       
     # Issuer e Audience
     issuer: ${conexao-de-sorte-jwt-issuer}
-    audience: ${JWT_AUDIENCE}
+    audience: ${conexao-de-sorte-jwt-audience}
     
     # JWKS cache
-    jwks-cache-duration: ${JWT_JWKS_CACHE_DURATION}  # Configurado via Key Vault
+    jwks-cache-duration: ${conexao-de-sorte-jwt-jwks-cache-duration}
     
     # Security settings
-    algorithm: ${JWT_ALGORITHM}
+    algorithm: ${conexao-de-sorte-jwt-algorithm}
     rotation:
-      enabled: ${JWT_ROTATION_ENABLED}
-      schedule: ${JWT_ROTATION_SCHEDULE}  # Configurado via Key Vault
+      enabled: ${conexao-de-sorte-jwt-rotation-enabled}
+      schedule: ${conexao-de-sorte-jwt-rotation-schedule}
 
   # CORS Configuration
   cors:
@@ -219,26 +219,26 @@ app:
       
   # Feature Flags
   features:
-    auth-microservice: ${FEATURE_AUTH_MS}
-    jwks-rotation: ${FEATURE_JWKS_ROTATION}
-    audit-logging: ${FEATURE_AUDIT_LOGGING}
-    metrics-collection: ${FEATURE_METRICS}
+    auth-microservice: ${conexao-de-sorte-feature-auth-ms}
+    jwks-rotation: ${conexao-de-sorte-feature-jwks-rotation}
+    audit-logging: ${conexao-de-sorte-feature-audit-logging}
+    metrics-collection: ${conexao-de-sorte-feature-metrics}
 
 # Logging Configuration
 logging:
   level:
-    "[br.tec.facilitaservicos.autenticacao]": ${LOG_LEVEL}
-    "[org.springframework.security]": ${SECURITY_LOG_LEVEL}
-    "[org.springframework.r2dbc]": ${R2DBC_LOG_LEVEL}
-    "[io.r2dbc.mysql]": ${MYSQL_LOG_LEVEL}
-    "[com.azure]": ${AZURE_LOG_LEVEL}
+    "[br.tec.facilitaservicos.autenticacao]": ${conexao-de-sorte-log-level}
+    "[org.springframework.security]": ${conexao-de-sorte-security-log-level}
+    "[org.springframework.r2dbc]": ${conexao-de-sorte-r2dbc-log-level}
+    "[io.r2dbc.mysql]": ${conexao-de-sorte-mysql-log-level}
+    "[com.azure]": ${conexao-de-sorte-azure-log-level}
     
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level [%X{traceId:-},%X{spanId:-}] %logger{36} - %msg%n"
     file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level [%X{traceId:-},%X{spanId:-}] %logger{36} - %msg%n"
     
   file:
-    name: ${LOG_FILE}
+    name: ${conexao-de-sorte-log-file}
 
 # OpenAPI Documentation
 springdoc:
@@ -282,7 +282,7 @@ spring:
     azure:
       keyvault:
         secret:
-          enabled: ${AZURE_KEYVAULT_ENABLED}
+          enabled: ${conexao-de-sorte-azure-keyvault-enabled}
           
 # Configurações específicas de produção (sobrescrevendo padrões)
 server:
@@ -292,7 +292,7 @@ server:
 app:
   jwt:
     key-vault:
-      enabled: ${JWT_KEYVAULT_ENABLED}
+      enabled: ${conexao-de-sorte-jwt-keyvault-enabled}
   features:
     auth-microservice: true
     jwks-rotation: true
