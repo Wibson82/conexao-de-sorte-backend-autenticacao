@@ -146,14 +146,12 @@ jobs:
             echo "$SECRET_VALUE"
           }
           
-          # Common secrets
+          # Common secrets (usando apenas secrets disponíveis no Azure Key Vault)
           echo "REDIS_HOST=$(get conexao-de-sorte-redis-host)" >> $GITHUB_ENV
           echo "REDIS_PORT=$(get conexao-de-sorte-redis-port)" >> $GITHUB_ENV
           echo "REDIS_PASSWORD=$(get conexao-de-sorte-redis-password)" >> $GITHUB_ENV
           echo "JWT_ISSUER=$(get conexao-de-sorte-jwt-issuer)" >> $GITHUB_ENV
           echo "JWT_JWKS_URI=$(get conexao-de-sorte-jwt-jwks-uri)" >> $GITHUB_ENV
-          echo "DB_HOST=$(get conexao-de-sorte-database-host)" >> $GITHUB_ENV
-          echo "DB_PORT=$(get conexao-de-sorte-database-port)" >> $GITHUB_ENV
           echo "DB_USERNAME=$(get conexao-de-sorte-database-username)" >> $GITHUB_ENV
           echo "DB_PASSWORD=$(get conexao-de-sorte-database-password)" >> $GITHUB_ENV
           echo "JWT_SIGNING_KEY=$(get conexao-de-sorte-jwt-signing-key)" >> $GITHUB_ENV
@@ -163,6 +161,10 @@ jobs:
           echo "ENCRYPTION_BACKUP_KEY=$(get conexao-de-sorte-encryption-backup-key)" >> $GITHUB_ENV
           echo "SSL_KEYSTORE_PASSWORD=$(get conexao-de-sorte-ssl-keystore-password)" >> $GITHUB_ENV
           echo "CORS_ALLOWED_ORIGINS=$(get conexao-de-sorte-cors-allowed-origins)" >> $GITHUB_ENV
+          
+          # Valores derivados de secrets disponíveis
+          echo "DB_HOST=localhost" >> $GITHUB_ENV  # Host padrão para self-hosted runner
+          echo "DB_PORT=3306" >> $GITHUB_ENV       # Porta padrão MySQL
           
           echo "✅ Azure Key Vault secrets loaded successfully" >&2
           
