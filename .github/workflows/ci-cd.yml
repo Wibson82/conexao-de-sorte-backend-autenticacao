@@ -120,6 +120,8 @@ jobs:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          # Definir escopo de token para Key Vault e outros recursos necessários
+          audience: api://AzureADTokenExchange
 
       - name: Fetch Azure Key Vault secrets
         id: kv
@@ -187,22 +189,56 @@ jobs:
           docker images --format "{{.Repository}}:{{.Tag}}" | grep "^${{ env.SERVICE_NAME }}:" | head -n -1 | xargs -r docker rmi || true
           echo "✅ Container cleanup completed"
 
-      - name: 🐳 Build Docker image (Local - Self-hosted)
+      - name: 🐳 Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          install: true
+
+      - name: 🐳 Build Docker image with Buildx (Local - Self-hosted)
         id: build
         timeout-minutes: 30
         run: |
           set -euo pipefail
           TAG="${{ env.SERVICE_NAME }}:$(date +'%Y-%m-%d-%H%M%S')"
           
-          echo "🏗️ Building Docker image locally on self-hosted runner: $TAG"
-          docker build \
+          # Criar diretório temporário para secrets
+          mkdir -p .secrets
+          
+          # Preparar arquivos de secrets para BuildKit
+          echo "${{ env.DB_USERNAME }}" > .secrets/db_username
+          echo "${{ env.DB_PASSWORD }}" > .secrets/db_password
+          echo "${{ env.REDIS_PASSWORD }}" > .secrets/redis_password
+          echo "${{ env.JWT_SIGNING_KEY }}" > .secrets/jwt_signing_key
+          echo "${{ env.JWT_VERIFICATION_KEY }}" > .secrets/jwt_verification_key
+          echo "${{ env.JWT_KEY_ID }}" > .secrets/jwt_key_id
+          echo "${{ env.ENCRYPTION_MASTER_KEY }}" > .secrets/encryption_master_key
+          echo "${{ env.ENCRYPTION_BACKUP_KEY }}" > .secrets/encryption_backup_key
+          echo "${{ env.SSL_KEYSTORE_PASSWORD }}" > .secrets/ssl_keystore_password
+          
+          echo "🏗️ Building Docker image with Buildx locally on self-hosted runner: $TAG"
+          docker buildx build \
             --platform linux/amd64 \
             --tag "$TAG" \
             --build-arg SERVICE_NAME="${{ env.SERVICE_NAME }}" \
             --build-arg BUILD_DATE="${{ github.event.head_commit.timestamp || github.run_id }}" \
             --build-arg VCS_REF="${{ github.sha }}" \
             --build-arg VERSION="1.0.0" \
+            --secret id=db_username,src=.secrets/db_username \
+            --secret id=db_password,src=.secrets/db_password \
+            --secret id=redis_password,src=.secrets/redis_password \
+            --secret id=jwt_signing_key,src=.secrets/jwt_signing_key \
+            --secret id=jwt_verification_key,src=.secrets/jwt_verification_key \
+            --secret id=jwt_key_id,src=.secrets/jwt_key_id \
+            --secret id=encryption_master_key,src=.secrets/encryption_master_key \
+            --secret id=encryption_backup_key,src=.secrets/encryption_backup_key \
+            --secret id=ssl_keystore_password,src=.secrets/ssl_keystore_password \
+            --provenance=false \
+            --load \
+            --no-cache \
             .
+          
+          # Remover arquivos temporários de secrets
+          rm -rf .secrets
           
           echo "image_tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "✅ Image built locally on self-hosted runner (NO REGISTRY)"

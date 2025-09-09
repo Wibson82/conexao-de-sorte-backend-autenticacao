@@ -14,10 +14,10 @@ services:
     container_name: auth-mysql
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: root123
+      MYSQL_ROOT_PASSWORD_FILE: /run/secrets/mysql_root_password
       MYSQL_DATABASE: conexao_sorte_auth
       MYSQL_USER: conexao_sorte
-      MYSQL_PASSWORD: senha123
+      MYSQL_PASSWORD_FILE: /run/secrets/mysql_password
       MYSQL_CHARSET: utf8mb4
       MYSQL_COLLATION: utf8mb4_unicode_ci
     ports:
@@ -27,8 +27,11 @@ services:
       - ./scripts/mysql-init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     networks:
       - auth-network
+    secrets:
+      - mysql_root_password
+      - mysql_password
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "conexao_sorte", "-psenha123"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "conexao_sorte", "--password-file=/run/secrets/mysql_password"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -54,12 +57,14 @@ services:
       - ./config/redis.conf:/usr/local/etc/redis/redis.conf:ro
     networks:
       - auth-network
+    secrets:
+      - redis_password
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "sh", "-c", "redis-cli -a $$(cat /run/secrets/redis_password) ping"]
       interval: 30s
       timeout: 10s
       retries: 3
-    command: redis-server /usr/local/etc/redis/redis.conf
+    command: ["sh", "-c", "redis-server /usr/local/etc/redis/redis.conf --requirepass $$(cat /run/secrets/redis_password)"]
 
   # ========================================
   # Microserviço Autenticação
@@ -74,18 +79,16 @@ services:
       # Spring Profiles
       SPRING_PROFILES_ACTIVE: prod
       
-      # Database
+      # Database (apenas configurações não-sensíveis)
       DB_HOST: mysql
       DB_PORT: 3306
       DB_NAME: conexao_sorte_auth
-      DB_USERNAME: conexao_sorte
-      DB_PASSWORD: senha123
       
-      # Redis
+      # Redis (apenas configurações não-sensíveis)
       REDIS_HOST: redis
       REDIS_PORT: 6379
       
-      # JWT Configuration
+      # JWT Configuration (apenas configurações não-sensíveis)
       JWT_ISSUER: https://auth.conexaodesorte.local
       JWT_AUDIENCE: conexao-de-sorte-dev
       
@@ -108,6 +111,13 @@ services:
         -XX:+UseG1GC 
         -XX:+UseContainerSupport
         -Dspring.profiles.active=prod
+    secrets:
+      - db_username
+      - db_password
+      - redis_password
+      - jwt_secret
+      - jwt_signing_key
+      - jwt_verification_key
     ports:
       - "8081:8081"
     volumes:
@@ -216,6 +226,27 @@ volumes:
   grafana_data:
     driver: local
     name: auth_grafana_data
+
+# ========================================
+# Secrets
+# ========================================
+secrets:
+  mysql_root_password:
+    file: ./secrets/mysql_root_password.txt
+  mysql_password:
+    file: ./secrets/mysql_password.txt
+  db_username:
+    file: ./secrets/db_username.txt
+  db_password:
+    file: ./secrets/db_password.txt
+  redis_password:
+    file: ./secrets/redis_password.txt
+  jwt_secret:
+    file: ./secrets/jwt_secret.txt
+  jwt_signing_key:
+    file: ./secrets/jwt_signing_key.txt
+  jwt_verification_key:
+    file: ./secrets/jwt_verification_key.txt
 
 # ============================================================================
 # COMANDOS ÚTEIS:

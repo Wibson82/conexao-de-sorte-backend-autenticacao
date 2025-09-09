@@ -53,8 +53,10 @@ RUN --mount=type=cache,target=/root/.m2 \
 # Copiar código fonte
 COPY src/ src/
 
-# Build da aplicação com otimizações
+# Build da aplicação com otimizações e suporte a segredos via BuildKit
 RUN --mount=type=cache,target=/root/.m2 \
+    --mount=type=secret,id=maven_settings,target=/root/.m2/settings.xml,required=false \
+    --mount=type=secret,id=maven_security,target=/root/.m2/settings-security.xml,required=false \
     mvn clean package -DskipTests -B \
     -Dspring-boot.build-image.pullPolicy=IF_NOT_PRESENT \
     -Dmaven.compiler.debug=false \
@@ -93,70 +95,37 @@ RUN mkdir -p /app/logs && \
 # Copiar JAR da aplicação do estágio de build
 COPY --from=builder --chown=appuser:appgroup /build/target/*.jar app.jar
 
-# ===== Injeção de variáveis via BUILD ARGS (Key Vault → Workflow → Docker Build) =====
-# Banco de dados
-ARG CONEXAO_DE_SORTE_DATABASE_URL
-ARG CONEXAO_DE_SORTE_DATABASE_JDBC_URL
-ARG CONEXAO_DE_SORTE_DATABASE_R2DBC_URL
-ARG CONEXAO_DE_SORTE_DATABASE_USERNAME
-ARG CONEXAO_DE_SORTE_DATABASE_PASSWORD
-ARG CONEXAO_DE_SORTE_DATABASE_PROXYSQL_PASSWORD
-
-# Redis
+# ===== Configurações não-sensíveis via ARG (podem ser definidas no build) =====
+# Configurações de conexão (apenas hosts/portas/nomes, sem credenciais)
+ARG CONEXAO_DE_SORTE_DATABASE_HOST
+ARG CONEXAO_DE_SORTE_DATABASE_PORT
+ARG CONEXAO_DE_SORTE_DATABASE_NAME
 ARG CONEXAO_DE_SORTE_REDIS_HOST
 ARG CONEXAO_DE_SORTE_REDIS_PORT
-ARG CONEXAO_DE_SORTE_REDIS_PASSWORD
 ARG CONEXAO_DE_SORTE_REDIS_DATABASE
 
-# JWT / OIDC
+# Configurações de serviço (não-sensíveis)
 ARG CONEXAO_DE_SORTE_JWT_ISSUER
 ARG CONEXAO_DE_SORTE_JWT_JWKS_URI
-ARG CONEXAO_DE_SORTE_JWT_KEY_ID
-ARG CONEXAO_DE_SORTE_JWT_SECRET
-ARG CONEXAO_DE_SORTE_JWT_SIGNING_KEY
-ARG CONEXAO_DE_SORTE_JWT_VERIFICATION_KEY
-ARG CONEXAO_DE_SORTE_JWT_PRIVATEKEY
-ARG CONEXAO_DE_SORTE_JWT_PUBLICKEY
-
-# CORS / SSL
 ARG CONEXAO_DE_SORTE_CORS_ALLOWED_ORIGINS
 ARG CONEXAO_DE_SORTE_CORS_ALLOW_CREDENTIALS
 ARG CONEXAO_DE_SORTE_SSL_ENABLED
-ARG CONEXAO_DE_SORTE_SSL_KEYSTORE_PATH
-ARG CONEXAO_DE_SORTE_SSL_KEYSTORE_PASSWORD
 
-# Encryption
-ARG CONEXAO_DE_SORTE_ENCRYPTION_MASTER_KEY
-ARG CONEXAO_DE_SORTE_ENCRYPTION_MASTER_PASSWORD
-ARG CONEXAO_DE_SORTE_ENCRYPTION_BACKUP_KEY
-
-# Exportar como ENV para Spring Boot (Relaxed Binding)
-ENV CONEXAO_DE_SORTE_DATABASE_URL=${CONEXAO_DE_SORTE_DATABASE_URL} \
-    CONEXAO_DE_SORTE_DATABASE_JDBC_URL=${CONEXAO_DE_SORTE_DATABASE_JDBC_URL} \
-    CONEXAO_DE_SORTE_DATABASE_R2DBC_URL=${CONEXAO_DE_SORTE_DATABASE_R2DBC_URL} \
-    CONEXAO_DE_SORTE_DATABASE_USERNAME=${CONEXAO_DE_SORTE_DATABASE_USERNAME} \
-    CONEXAO_DE_SORTE_DATABASE_PASSWORD=${CONEXAO_DE_SORTE_DATABASE_PASSWORD} \
-    CONEXAO_DE_SORTE_DATABASE_PROXYSQL_PASSWORD=${CONEXAO_DE_SORTE_DATABASE_PROXYSQL_PASSWORD} \
+# Exportar apenas configurações não-sensíveis como ENV
+ENV CONEXAO_DE_SORTE_DATABASE_HOST=${CONEXAO_DE_SORTE_DATABASE_HOST} \
+    CONEXAO_DE_SORTE_DATABASE_PORT=${CONEXAO_DE_SORTE_DATABASE_PORT} \
+    CONEXAO_DE_SORTE_DATABASE_NAME=${CONEXAO_DE_SORTE_DATABASE_NAME} \
     CONEXAO_DE_SORTE_REDIS_HOST=${CONEXAO_DE_SORTE_REDIS_HOST} \
     CONEXAO_DE_SORTE_REDIS_PORT=${CONEXAO_DE_SORTE_REDIS_PORT} \
-    CONEXAO_DE_SORTE_REDIS_PASSWORD=${CONEXAO_DE_SORTE_REDIS_PASSWORD} \
     CONEXAO_DE_SORTE_REDIS_DATABASE=${CONEXAO_DE_SORTE_REDIS_DATABASE} \
     CONEXAO_DE_SORTE_JWT_ISSUER=${CONEXAO_DE_SORTE_JWT_ISSUER} \
     CONEXAO_DE_SORTE_JWT_JWKS_URI=${CONEXAO_DE_SORTE_JWT_JWKS_URI} \
-    CONEXAO_DE_SORTE_JWT_KEY_ID=${CONEXAO_DE_SORTE_JWT_KEY_ID} \
-    CONEXAO_DE_SORTE_JWT_SECRET=${CONEXAO_DE_SORTE_JWT_SECRET} \
-    CONEXAO_DE_SORTE_JWT_SIGNING_KEY=${CONEXAO_DE_SORTE_JWT_SIGNING_KEY} \
-    CONEXAO_DE_SORTE_JWT_VERIFICATION_KEY=${CONEXAO_DE_SORTE_JWT_VERIFICATION_KEY} \
-    CONEXAO_DE_SORTE_JWT_PRIVATEKEY=${CONEXAO_DE_SORTE_JWT_PRIVATEKEY} \
-    CONEXAO_DE_SORTE_JWT_PUBLICKEY=${CONEXAO_DE_SORTE_JWT_PUBLICKEY} \
     CONEXAO_DE_SORTE_CORS_ALLOWED_ORIGINS=${CONEXAO_DE_SORTE_CORS_ALLOWED_ORIGINS} \
     CONEXAO_DE_SORTE_CORS_ALLOW_CREDENTIALS=${CONEXAO_DE_SORTE_CORS_ALLOW_CREDENTIALS} \
-    CONEXAO_DE_SORTE_SSL_ENABLED=${CONEXAO_DE_SORTE_SSL_ENABLED} \
-    CONEXAO_DE_SORTE_SSL_KEYSTORE_PATH=${CONEXAO_DE_SORTE_SSL_KEYSTORE_PATH} \
-    CONEXAO_DE_SORTE_SSL_KEYSTORE_PASSWORD=${CONEXAO_DE_SORTE_SSL_KEYSTORE_PASSWORD} \
-    CONEXAO_DE_SORTE_ENCRYPTION_MASTER_KEY=${CONEXAO_DE_SORTE_ENCRYPTION_MASTER_KEY} \
-    CONEXAO_DE_SORTE_ENCRYPTION_MASTER_PASSWORD=${CONEXAO_DE_SORTE_ENCRYPTION_MASTER_PASSWORD} \
-    CONEXAO_DE_SORTE_ENCRYPTION_BACKUP_KEY=${CONEXAO_DE_SORTE_ENCRYPTION_BACKUP_KEY}
+    CONEXAO_DE_SORTE_SSL_ENABLED=${CONEXAO_DE_SORTE_SSL_ENABLED}
+
+# NOTA: Todas as variáveis sensíveis devem ser injetadas em runtime
+# via docker run -e ou docker-compose environment/env_file/secrets
 
 ## JVM otimizada para containers: flags removidas para compatibilidade total com Java 24
 # As flags e perfis devem ser definidos externamente via workflow/deploy
@@ -195,7 +164,7 @@ RUN printf '%s\n' '#!/bin/sh' \
 # Mudar para usuário não-root
 USER appuser:appgroup
 
-# Labels para metadata
+# Labels para metadata (OCI Image Format Specification)
 LABEL org.opencontainers.image.title="Conexão de Sorte - Autenticação"
 LABEL org.opencontainers.image.description="Microserviço de Autenticação OAuth2/JWT"
 LABEL org.opencontainers.image.version=${VERSION}
@@ -205,6 +174,15 @@ LABEL org.opencontainers.image.vendor="Conexão de Sorte"
 LABEL org.opencontainers.image.licenses="MIT"
 LABEL org.opencontainers.image.url="https://conexaodesorte.com"
 LABEL org.opencontainers.image.source="https://github.com/conexaodesorte/autenticacao"
+LABEL org.opencontainers.image.authors="Equipe de Desenvolvimento <dev@conexaodesorte.com>"
+LABEL org.opencontainers.image.documentation="https://docs.conexaodesorte.com/autenticacao"
+LABEL org.opencontainers.image.base.name="eclipse-temurin:24-jre-alpine"
+# Labels específicos da aplicação
+LABEL com.conexaodesorte.java.version="24"
+LABEL com.conexaodesorte.spring.version="3.5.5"
+LABEL com.conexaodesorte.service.name="autenticacao"
+LABEL com.conexaodesorte.service.tier="backend"
+LABEL com.conexaodesorte.environment="production"
 
 # Comando de inicialização com pré-checagem de DB
 ENTRYPOINT ["/app/docker-entrypoint.sh"]
