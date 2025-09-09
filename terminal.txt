@@ -1,32 +1,3 @@
-Run CONTAINER_NAME="autenticacao-microservice"
-� Waiting for service to be ready...
-⏳ Waiting for service readiness... (0/180 seconds)
-⏳ Waiting for service readiness... (10/180 seconds)
-⏳ Waiting for service readiness... (20/180 seconds)
-⏳ Waiting for service readiness... (30/180 seconds)
-⏳ Waiting for service readiness... (40/180 seconds)
-⏳ Waiting for service readiness... (50/180 seconds)
-⏳ Waiting for service readiness... (60/180 seconds)
-⏳ Waiting for service readiness... (70/180 seconds)
-⏳ Waiting for service readiness... (80/180 seconds)
-⏳ Waiting for service readiness... (90/180 seconds)
-⏳ Waiting for service readiness... (100/180 seconds)
-⏳ Waiting for service readiness... (110/180 seconds)
-⏳ Waiting for service readiness... (120/180 seconds)
-⏳ Waiting for service readiness... (130/180 seconds)
-⏳ Waiting for service readiness... (140/180 seconds)
-⏳ Waiting for service readiness... (150/180 seconds)
-⏳ Waiting for service readiness... (160/180 seconds)
-⏳ Waiting for service readiness... (170/180 seconds)
-❌ Service failed to become ready within 180 seconds
-� Container logs:
-13:05:50,318 |-WARN in ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP@26a94fa5 - is deprecated. Please use SizeAndTimeBasedRollingPolicy instead.
-13:05:50,318 |-WARN in ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP@26a94fa5 - For more information see https://logback.qos.ch/manual/appenders.html#SizeAndTimeBasedRollingPolicy
-13:05:50,325 |-WARN in ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP@4642b71d - SizeAndTimeBasedFNATP class was renamed as SizeAndTimeBasedFileNamingAndTriggeringPolicy.
-13:05:50,326 |-WARN in ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP@4642b71d - Direct use of either SizeAndTimeBasedFNATP or SizeAndTimeBasedFileNamingAndTriggeringPolicy 
-13:05:50,326 |-WARN in ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP@4642b71d - is deprecated. Please use SizeAndTimeBasedRollingPolicy instead.
-13:05:50,326 |-WARN in ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP@4642b71d - For more information see https://logback.qos.ch/manual/appenders.html#SizeAndTimeBasedRollingPolicy
-
   .   ____          _            __ _ _
  /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
 ( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
@@ -36,73 +7,37 @@ Run CONTAINER_NAME="autenticacao-microservice"
 
  :: Spring Boot ::                (v3.5.5)
 
-{"@timestamp":"2025-09-09T13:05:50.478632278-03:00","level":"DEBUG","logger_name":"org.jboss.logging","message":"Logging Provider: org.jboss.logging.Slf4jLoggerProvider found via system property"}
-{"@timestamp":"2025-09-09T13:05:50.604018285-03:00","level":"INFO","logger_name":"br.tec.facilitaservicos.autenticacao.AutenticacaoApplication","message":"Starting AutenticacaoApplication v1.0.0 using Java 24.0.2 with PID 7 (/app/app.jar started by appuser in /app)"}
-{"@timestamp":"2025-09-09T13:05:50.605277841-03:00","level":"INFO","logger_name":"br.tec.facilitaservicos.autenticacao.AutenticacaoApplication","message":"The following 1 profile is active: \"dev\""}
-{"@timestamp":"2025-09-09T13:05:50.608592619-03:00","level":"DEBUG","logger_name":"org.springframework.boot.SpringApplication","message":"Loading source class br.tec.facilitaservicos.autenticacao.AutenticacaoApplication"}
-{"@timestamp":"2025-09-09T13:05:50.872321649-03:00","level":"DEBUG","logger_name":"org.springframework.boot.web.reactive.context.AnnotationConfigReactiveWebServerApplicationContext","message":"Refreshing org.springframework.boot.web.reactive.context.AnnotationConfigReactiveWebServerApplicationContext@6ce90bc5"}
-{"@timestamp":"2025-09-09T13:05:50.977448373-03:00","level":"DEBUG","logger_name":"org.springframework.beans.factory.support.DefaultListableBeanFactory","message":"Creating shared instance of singleton bean 'org.springframework.context.annotation.internalConfigurationAnnotationProcessor'"}
-{"@timestamp":"2025-09-09T13:05:51.121024273-03:00","level":"DEBUG","logger_name":"org.springframework.beans.factory.support.DefaultListableBeanFactory","message":"Creating shared instance of singleton bean 'org.springframework.boot.autoconfigure.internalCachingMetadataReaderFactory'"}
-{"@timestamp":"2025-09-09T13:05:51.463922615-03:00","level":"DEBUG","logger_name":"org.springframework.context.annotation.ClassPathBeanDefinitionScanner","message":"Identified candidate component class: URL [jar:nested:/app/app.jar/!BOOT-INF/classes/!/br/tec/facilitaservicos/autenticacao/aplicacao/servico/ServicoValidacaoSenha.class]"}
-{"@timestamp":"2025-09-09T13:05:51.465195511-03:00","level":"DEBUG","logger_name":"org.springframework.context.annotation.ClassPathBeanDefinitionScanner","message":"Identified candidate component class: URL [jar:nested:/app/app.jar/!BOOT-INF/classes/!/br/tec/facilitaservicos/autenticacao/client/UserServiceClientImpl.class]"}
-{"@timestamp":"2025-09-09T13:05:51.49251006-03:00","level":"DEBUG","logger_name":"org.springframework.context.annotation.ClassPathBeanDefinitionScanner","message":"Identified candidate component class: URL [jar:nested:/app/app.jar/!BOOT-INF/classes/!/br/tec/facilitaservicos/autenticacao/config/CacheConfig.class]"}
-{"@timestamp":"2025-09-09T13:05:51.495281924-03:00","level":"DEBUG","logger_name":"org.springframework.context.annotation.ClassPathBeanDefinitionScanner","message":"Identified candidate component class: URL [jar:nested:/app/app.jar/!BOOT-INF/classes/!/br/tec/facilitaservicos/autenticacao/config/OpenApiConfig.class]"}
-{"@timestamp":"2025-09-09T13:05:51.549218418-03:00","level":"DEBUG","logger_name":"org.springframework.context.annotation.ClassPathBeanDefinitionScanner","message":"Identified candidate component class: URL [jar:nested:/app/app.jar/!BOOT-INF/classes/!/br/tec/facilitaservicos/autenticacao/config/R2dbcConfig.class]"}
-{"@timestamp":"2025-09-09T13:05:51.550336635-03:00","level":"DEBUG","logger_name":"org.springframework.context.annotation.ClassPathBeanDefinitionScanner","message":"Identified candidate component class: URL [jar:nested:/app/app.jar/!BOOT-INF/classes/!/br/tec/facilitaservicos/autenticacao/config/RateLimitConfig.class]"}
-{"@timestamp":"2025-09-09T13:05:51.56720627-03:00","level":"DEBUG","logger_name":"org.springframework.context.annotation.ClassPathBeanDefinitionScanner","message":"Identified candidate component class: URL [jar:nested:/app/app.jar/!BOOT-INF/classes/!/br/tec/facilitaservicos/autenticacao/config/SecurityConfig.class]"}
-{"@timestamp":"2025-09-09T13:05:51.568678938-03:00","level":"DEBUG","logger_name":"org.springframework.context.annotation.ClassPathBeanDefinitionScanner","message":"Identified candidate component class: URL [jar:nested:/app/app.jar/!BOOT-INF/classes/!/br/tec/facilitaservicos/autenticacao/config/WebClientConfig.class]"}
-{"@timestamp":"2025-09-09T13:05:51.597924236-03:00","level":"DEBUG","logger_name":"org.springframework.context.annotation.ClassPathBeanDefinitionScanner","message":"Identified candidate component class: URL [jar:nested:/app/app.jar/!BOOT-INF/classes/!/br/tec/facilitaservicos/autenticacao/configuracao/CircuitBreakerConfig.class]"}
-{"@timestamp":"2025-09-09T13:05:51.606101468-03:00","level":"DEBUG","logger_name":"org.springframework.context.annotation.ClassPathBeanDefinitionScanner","message":"Identified candidate component class: URL [jar:nested:/app/app.jar/!BOOT-INF/classes/!/br/tec/facilitaservicos/autenticacao/configuracao/EventListenerAutoConfiguration.class]"}
-{"@timestamp":"2025-09-09T13:05:51.60849193-03:00","level":"DEBUG","logger_name":"org.springframework.context.annotation.ClassPathBeanDefinitionScanner","message":"Identified candidate component class: URL [jar:nested:/app/app.jar/!BOOT-INF/classes/!/br/tec/facilitaservicos/autenticacao/configuracao/LocaleTimeConfig.class]"}
-{"@timestamp":"2025-09-09T13:05:51.609104593-03:00","level":"DEBUG","logger_name":"org.springframework.context.annotation.ClassPathBeanDefinitionScanner","message":"Identified candidate component class: URL [jar:nested:/app/app.jar/!BOOT-INF/classes/!/br/tec/facilitaservicos/autenticacao/configuracao/R2dbcUrlNormalizer.class]"}
-{"@timestamp":"2025-09-09T13:05:51.861195384-03:00","level":"DEBUG","logger_name":"org.springframework.context.annotation.ClassPathBeanDefinitionScanner","message":"Identified candidate component class: URL [jar:nested:/app/app.jar/!BOOT-INF/classes/!/br/tec/facilitaservicos/autenticacao/controller/AuthController.class]"}
-{"@timestamp":"2025-09-09T13:05:51.869099673-03:00","level":"DEBUG","logger_name":"org.springframework.context.annotation.ClassPathBeanDefinitionScanner","message":"Identified candidate component class: URL [jar:nested:/app/app.jar/!BOOT-INF/classes/!/br/tec/facilitaservicos/autenticacao/controller/AuthDiagnosticsController.class]"}
-{"@timestamp":"2025-09-09T13:05:51.874835714-03:00","level":"DEBUG","logger_name":"org.springframework.context.annotation.ClassPathBeanDefinitionScanner","message":"Identified candidate component class: URL [jar:nested:/app/app.jar/!BOOT-INF/classes/!/br/tec/facilitaservicos/autenticacao/controller/JwksController.class]"}
-{"@timestamp":"2025-09-09T13:05:51.879684167-03:00","level":"DEBUG","logger_name":"org.springframework.context.annotation.ClassPathBeanDefinitionScanner","message":"Identified candidate component class: URL [jar:nested:/app/app.jar/!BOOT-INF/classes/!/br/tec/facilitaservicos/autenticacao/controller/KeyVaultDiagnosticsController.class]"}
-{"@timestamp":"2025-09-09T13:05:51.880936834-03:00","level":"DEBUG","logger_name":"org.springframework.context.annotation.ClassPathBeanDefinitionScanner","message":"Identified candidate component class: URL [jar:nested:/app/app.jar/!BOOT-INF/classes/!/br/tec/facilitaservicos/autenticacao/controller/TwoFactorController.class]"}
-{"@timestamp":"2025-09-09T13:05:51.965921476-03:00","level":"DEBUG","logger_name":"org.springframework.context.annotation.ClassPathBeanDefinitionScanner","message":"Ignored because not a concrete top-level class: URL [jar:nested:/app/app.jar/!BOOT-INF/classes/!/br/tec/facilitaservicos/autenticacao/repository/RefreshTokenRepository.class]"}
-{"@timestamp":"2025-09-09T13:05:51.967994526-03:00","level":"DEBUG","logger_name":"org.springframework.context.annotation.ClassPathBeanDefinitionScanner","message":"Identified candidate component class: URL [jar:nested:/app/app.jar/!BOOT-INF/classes/!/br/tec/facilitaservicos/autenticacao/service/AuthService.class]"}
-{"@timestamp":"2025-09-09T13:05:51.969266273-03:00","level":"DEBUG","logger_name":"org.springframework.context.annotation.ClassPathBeanDefinitionScanner","message":"Identified candidate component class: URL [jar:nested:/app/app.jar/!BOOT-INF/classes/!/br/tec/facilitaservicos/autenticacao/service/DiagnosticoService.class]"}
-{"@timestamp":"2025-09-09T13:05:51.970506389-03:00","level":"DEBUG","logger_name":"org.springframework.context.annotation.ClassPathBeanDefinitionScanner","message":"Identified candidate component class: URL [jar:nested:/app/app.jar/!BOOT-INF/classes/!/br/tec/facilitaservicos/autenticacao/service/JwtService.class]"}
-{"@timestamp":"2025-09-09T13:05:51.971834486-03:00","level":"DEBUG","logger_name":"org.springframework.context.annotation.ClassPathBeanDefinitionScanner","message":"Identified candidate component class: URL [jar:nested:/app/app.jar/!BOOT-INF/classes/!/br/tec/facilitaservicos/autenticacao/service/KeyVaultMonitoringService.class]"}
-{"@timestamp":"2025-09-09T13:05:51.977014292-03:00","level":"DEBUG","logger_name":"org.springframework.context.annotation.ClassPathBeanDefinitionScanner","message":"Identified candidate component class: URL [jar:nested:/app/app.jar/!BOOT-INF/classes/!/br/tec/facilitaservicos/autenticacao/service/KeyVaultService.class]"}
-{"@timestamp":"2025-09-09T13:05:51.97840451-03:00","level":"DEBUG","logger_name":"org.springframework.context.annotation.ClassPathBeanDefinitionScanner","message":"Identified candidate component class: URL [jar:nested:/app/app.jar/!BOOT-INF/classes/!/br/tec/facilitaservicos/autenticacao/service/TwoFactorService.class]"}
-{"@timestamp":"2025-09-09T13:05:51.980131988-03:00","level":"DEBUG","logger_name":"org.springframework.context.annotation.ClassPathBeanDefinitionScanner","message":"Identified candidate component class: URL [jar:nested:/app/app.jar/!BOOT-INF/classes/!/br/tec/facilitaservicos/autenticacao/service/UserValidationService.class]"}
-{"@timestamp":"2025-09-09T13:05:54.135019859-03:00","level":"INFO","logger_name":"org.springframework.data.repository.config.RepositoryConfigurationDelegate","message":"Multiple Spring Data modules found, entering strict repository configuration mode"}
-{"@timestamp":"2025-09-09T13:05:54.138111195-03:00","level":"INFO","logger_name":"org.springframework.data.repository.config.RepositoryConfigurationDelegate","message":"Bootstrapping Spring Data R2DBC repositories in DEFAULT mode."}
-
-
-Nossos segredos: "GITHUB
-AZURE_CLIENT_ID, 
-AZURE_KEYVAULT_ENDPOINT, 
-AZURE_KEYVAULT_NAME, 
-AZURE_SUBSCRIPTION_ID e 
-AZURE_TENANT_ID
-
-AZURE
-conexao-de-sorte-cors-allow-credentials
-conexao-de-sorte-cors-allowed-origins
-conexao-de-sorte-database-jdbc-url
-conexao-de-sorte-database-password
-conexao-de-sorte-database-r2dbc-url
-conexao-de-sorte-database-url
-conexao-de-sorte-database-username
-conexao-de-sorte-encryption-backup-key
-conexao-de-sorte-encryption-master-key
-conexao-de-sorte-encryption-master-password
-conexao-de-sorte-jwt-issuer
-conexao-de-sorte-jwt-jwks-uri
-conexao-de-sorte-jwt-key-id
-conexao-de-sorte-jwt-privateKey
-conexao-de-sorte-jwt-publicKey
-conexao-de-sorte-jwt-secret
-conexao-de-sorte-jwt-signing-key
-conexao-de-sorte-jwt-verification-key
-conexao-de-sorte-redis-database
-conexao-de-sorte-redis-host
-conexao-de-sorte-redis-password
-conexao-de-sorte-redis-port
-conexao-de-sorte-ssl-enabled
-conexao-de-sorte-ssl-keystore-password
-conexao-de-sorte-ssl-keystore-path
-conexao-de-sorte-database-proxysql-password"
+{"@timestamp":"2025-09-09T13:45:31.84162193-03:00","level":"INFO","logger_name":"br.tec.facilitaservicos.autenticacao.AutenticacaoApplication","message":"Starting AutenticacaoApplication v1.0.0 using Java 24.0.2 with PID 7 (/app/app.jar started by appuser in /app)"}
+{"@timestamp":"2025-09-09T13:45:31.925243964-03:00","level":"INFO","logger_name":"br.tec.facilitaservicos.autenticacao.AutenticacaoApplication","message":"The following 1 profile is active: \"prod\""}
+{"@timestamp":"2025-09-09T13:45:34.758991523-03:00","level":"INFO","logger_name":"org.springframework.data.repository.config.RepositoryConfigurationDelegate","message":"Multiple Spring Data modules found, entering strict repository configuration mode"}
+{"@timestamp":"2025-09-09T13:45:34.761975919-03:00","level":"INFO","logger_name":"org.springframework.data.repository.config.RepositoryConfigurationDelegate","message":"Bootstrapping Spring Data R2DBC repositories in DEFAULT mode."}
+{"@timestamp":"2025-09-09T13:45:35.351749972-03:00","level":"INFO","logger_name":"org.springframework.data.repository.config.RepositoryConfigurationDelegate","message":"Finished Spring Data repository scanning in 565 ms. Found 5 R2DBC repository interfaces."}
+{"@timestamp":"2025-09-09T13:45:36.951633389-03:00","level":"INFO","logger_name":"org.springframework.data.repository.config.RepositoryConfigurationDelegate","message":"Multiple Spring Data modules found, entering strict repository configuration mode"}
+{"@timestamp":"2025-09-09T13:45:36.958798248-03:00","level":"INFO","logger_name":"org.springframework.data.repository.config.RepositoryConfigurationDelegate","message":"Bootstrapping Spring Data Redis repositories in DEFAULT mode."}
+{"@timestamp":"2025-09-09T13:45:37.052306947-03:00","level":"INFO","logger_name":"org.springframework.data.repository.config.RepositoryConfigurationExtensionSupport","message":"Spring Data Redis - Could not safely identify store assignment for repository candidate interface br.tec.facilitaservicos.autenticacao.repository.RefreshTokenRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository"}
+{"@timestamp":"2025-09-09T13:45:37.05281034-03:00","level":"INFO","logger_name":"org.springframework.data.repository.config.RepositoryConfigurationDelegate","message":"Finished Spring Data repository scanning in 43 ms. Found 0 Redis repository interfaces."}
+{"@timestamp":"2025-09-09T13:45:37.862816663-03:00","level":"INFO","logger_name":"org.springframework.cloud.context.scope.GenericScope","message":"BeanFactory id=9a891053-f1c4-39c5-a63a-0f38fc910fad"}
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::allocateMemory has been called by io.netty.util.internal.PlatformDependent0$2 (jar:nested:/app/app.jar/!BOOT-INF/lib/netty-common-4.1.124.Final.jar!/)
+WARNING: Please consider reporting this to the maintainers of class io.netty.util.internal.PlatformDependent0$2
+WARNING: sun.misc.Unsafe::allocateMemory will be removed in a future release
+{"@timestamp":"2025-09-09T13:45:39.270694371-03:00","level":"WARN","logger_name":"org.springframework.boot.web.reactive.context.AnnotationConfigReactiveWebServerApplicationContext","message":"Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'r2dbcConfig': Injection of autowired dependencies failed"}
+{"@timestamp":"2025-09-09T13:45:39.288315698-03:00","level":"INFO","logger_name":"org.springframework.boot.autoconfigure.logging.ConditionEvaluationReportLogger","message":"\n\nError starting ApplicationContext. To display the condition evaluation report re-run your application with 'debug' enabled."}
+{"@timestamp":"2025-09-09T13:45:39.32986398-03:00","level":"ERROR","logger_name":"org.springframework.boot.SpringApplication","message":"Application run failed","stack_trace":"org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'r2dbcConfig': Injection of autowired dependencies failed\n\tat org.springframework.beans.factory.annotation.AutowiredAnnotationBeanPostProcessor.postProcessProperties(AutowiredAnnotationBeanPostProcessor.java:515)\n\tat org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.populateBean(AbstractAutowireCapableBeanFactory.java:1459)\n\tat org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.doCreateBean(AbstractAutowireCapableBeanFactory.java:606)\n\tat org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBean(AbstractAutowireCapableBeanFactory.java:529)\n\tat org.springframework.beans.factory.support.AbstractBeanFactory.lambda$doGetBean$0(AbstractBeanFactory.java:339)\n\tat org.springframework.beans.factory.support.DefaultSingletonBeanRegistry.getSingleton(DefaultSingletonBeanRegistry.java:373)\n\tat org.springframework.beans.factory.support.AbstractBeanFactory.doGetBean(AbstractBeanFactory.java:337)\n\tat org.springframework.beans.factory.support.AbstractBeanFactory.getBean(AbstractBeanFactory.java:202)\n\tat org.springframework.beans.factory.support.DefaultListableBeanFactory.instantiateSingleton(DefaultListableBeanFactory.java:1222)\n\tat org.springframework.beans.factory.support.DefaultListableBeanFactory.preInstantiateSingleton(DefaultListableBeanFactory.java:1188)\n\tat org.springframework.beans.factory.support.DefaultListableBeanFactory.preInstantiateSingletons(DefaultListableBeanFactory.java:1123)\n\tat org.springframework.context.support.AbstractApplicationContext.finishBeanFactoryInitialization(AbstractApplicationContext.java:987)\n\tat org.springframework.context.support.AbstractApplicationContext.refresh(AbstractApplicationContext.java:627)\n\tat org.springframework.boot.web.reactive.context.ReactiveWebServerApplicationContext.refresh(ReactiveWebServerApplicationContext.java:66)\n\tat org.springframework.boot.SpringApplication.refresh(SpringApplication.java:752)\n\tat org.springframework.boot.SpringApplication.refreshContext(SpringApplication.java:439)\n\tat org.springframework.boot.SpringApplication.run(SpringApplication.java:318)\n\tat org.springframework.boot.SpringApplication.run(SpringApplication.java:1361)\n\tat org.springframework.boot.SpringApplication.run(SpringApplication.java:1350)\n\tat br.tec.facilitaservicos.autenticacao.AutenticacaoApplication.main(AutenticacaoApplication.java:38)\n\tat java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(Unknown Source)\n\tat java.base/java.lang.reflect.Method.invoke(Unknown Source)\n\tat org.springframework.boot.loader.launch.Launcher.launch(Launcher.java:102)\n\tat org.springframework.boot.loader.launch.Launcher.launch(Launcher.java:64)\n\tat org.springframework.boot.loader.launch.JarLauncher.main(JarLauncher.java:40)\nCaused by: org.springframework.util.PlaceholderResolutionException: Could not resolve placeholder 'DB_USERNAME' in value \"${DB_USERNAME}\" <-- \"${spring.r2dbc.username}\"\n\tat org.springframework.util.PlaceholderResolutionException.withValue(PlaceholderResolutionException.java:81)\n\tat org.springframework.util.PlaceholderParser$ParsedValue.resolve(PlaceholderParser.java:423)\n\tat org.springframework.util.PlaceholderParser.replacePlaceholders(PlaceholderParser.java:128)\n\tat org.springframework.util.PropertyPlaceholderHelper.parseStringValue(PropertyPlaceholderHelper.java:118)\n\tat org.springframework.util.PropertyPlaceholderHelper.replacePlaceholders(PropertyPlaceholderHelper.java:114)\n\tat org.springframework.core.env.AbstractPropertyResolver.doResolvePlaceholders(AbstractPropertyResolver.java:293)\n\tat org.springframework.core.env.AbstractPropertyResolver.resolveRequiredPlaceholders(AbstractPropertyResolver.java:264)\n\tat org.springframework.context.support.PropertySourcesPlaceholderConfigurer.lambda$processProperties$0(PropertySourcesPlaceholderConfigurer.java:186)\n\tat org.springframework.beans.factory.support.AbstractBeanFactory.resolveEmbeddedValue(AbstractBeanFactory.java:971)\n\tat org.springframework.beans.factory.support.DefaultListableBeanFactory.doResolveDependency(DefaultListableBeanFactory.java:1657)\n\tat org.springframework.beans.factory.support.DefaultListableBeanFactory.resolveDependency(DefaultListableBeanFactory.java:1635)\n\tat org.springframework.beans.factory.annotation.AutowiredAnnotationBeanPostProcessor$AutowiredFieldElement.resolveFieldValue(AutowiredAnnotationBeanPostProcessor.java:785)\n\tat org.springframework.beans.factory.annotation.AutowiredAnnotationBeanPostProcessor$AutowiredFieldElement.inject(AutowiredAnnotationBeanPostProcessor.java:768)\n\tat org.springframework.beans.factory.annotation.InjectionMetadata.inject(InjectionMetadata.java:146)\n\tat org.springframework.beans.factory.annotation.AutowiredAnnotationBeanPostProcessor.postProcessProperties(AutowiredAnnotationBeanPostProcessor.java:509)\n\t... 24 common frames omitted\n"}
+Starting AUTH service in DEBUG mode on port 5005
+Picked up JAVA_TOOL_OPTIONS: -XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -Xms256m -Xmx512m -Djava.security.egd=file:/dev/./urandom -Djava.awt.headless=true -Dfile.encoding=UTF-8
+Listening for transport dt_socket at address: 5005
+13:45:42,357 |-WARN in org.springframework.boot.logging.logback.SpringProfileIfNestedWithinSecondPhaseElementSanityChecker@3383649e - <springProfile> elements cannot be nested within an <appender>, <logger> or <root> element
+13:45:42,359 |-WARN in org.springframework.boot.logging.logback.SpringProfileIfNestedWithinSecondPhaseElementSanityChecker@3383649e - Element <logger> at line 102 contains a nested <springProfile> element at line 104
+13:45:43,267 |-WARN in ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP@4f20a5e0 - SizeAndTimeBasedFNATP class was renamed as SizeAndTimeBasedFileNamingAndTriggeringPolicy.
+13:45:43,271 |-WARN in ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP@4f20a5e0 - Direct use of either SizeAndTimeBasedFNATP or SizeAndTimeBasedFileNamingAndTriggeringPolicy
+13:45:43,271 |-WARN in ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP@4f20a5e0 - is deprecated. Please use SizeAndTimeBasedRollingPolicy instead.
+13:45:43,271 |-WARN in ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP@4f20a5e0 - For more information see https://logback.qos.ch/manual/appenders.html#SizeAndTimeBasedRollingPolicy
+13:45:43,286 |-WARN in ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP@29be7749 - SizeAndTimeBasedFNATP class was renamed as SizeAndTimeBasedFileNamingAndTriggeringPolicy.
+13:45:43,288 |-WARN in ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP@29be7749 - Direct use of either SizeAndTimeBasedFNATP or SizeAndTimeBasedFileNamingAndTriggeringPolicy
+13:45:43,288 |-WARN in ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP@29be7749 - is deprecated. Please use SizeAndTimeBasedRollingPolicy instead.
+13:45:43,288 |-WARN in ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP@29be7749 - For more information see https://logback.qos.ch/manual/appenders.html#SizeAndTimeBasedRollingPolicy
+13:45:43,293 |-WARN in ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP@6edaa77a - SizeAndTimeBasedFNATP class was renamed as SizeAndTimeBasedFileNamingAndTriggeringPolicy.
+13:45:43,294 |-WARN in ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP@6edaa77a - Direct use of either SizeAndTimeBasedFNATP or SizeAndTimeBasedFileNamingAndTriggeringPolicy
+13:45:43,294 |-WARN in ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP@6edaa77a - is deprecated. Please use SizeAndTimeBasedRollingPolicy instead.
+13:45:43,294 |-WARN in ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP@6edaa77a - For more information see https://logback.qos.ch/manual/appenders.html#SizeAndTimeBasedRollingPolicy

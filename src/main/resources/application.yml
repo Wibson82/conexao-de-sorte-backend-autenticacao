@@ -16,10 +16,10 @@ spring:
   # Cache reativo (Redis) - Configuração crítica para autenticação
   data:
     redis:
-      host: ${conexao-de-sorte-redis-host:localhost}
-      port: ${conexao-de-sorte-redis-port:6379}
-      password: ${conexao-de-sorte-redis-password:}
-      database: ${conexao-de-sorte-redis-database:0}
+      host: ${conexao-de-sorte-redis-host}
+      port: ${conexao-de-sorte-redis-port}
+      password: ${conexao-de-sorte-redis-password}
+      database: ${conexao-de-sorte-redis-database}
       timeout: 3000ms
       connect-timeout: 10000ms
       lettuce:
@@ -50,12 +50,12 @@ spring:
     azure:
       keyvault:
         secret:
-          enabled: ${AZURE_KEYVAULT_ENABLED:true}
-          endpoint: ${AZURE_KEYVAULT_ENDPOINT:}
+          enabled: ${AZURE_KEYVAULT_ENABLED}
+          endpoint: ${AZURE_KEYVAULT_ENDPOINT}
       profile:
-        tenant-id: ${AZURE_TENANT_ID:}
-        subscription-id: ${AZURE_SUBSCRIPTION_ID:}
-        client-id: ${AZURE_CLIENT_ID:}
+        tenant-id: ${AZURE_TENANT_ID}
+        subscription-id: ${AZURE_SUBSCRIPTION_ID}
+        client-id: ${AZURE_CLIENT_ID}
   
   # Configtree secret management
   config:
@@ -65,10 +65,10 @@ spring:
       - optional:file:./secrets.properties
       
   r2dbc:
-    # Preferencialmente usa -database-r2dbc-url; mantém compat com -database-url
-    url: ${conexao-de-sorte-database-r2dbc-url:${conexao-de-sorte-database-url:r2dbc:mysql://localhost:3306/conexao_sorte_auth?useSSL=true&allowPublicKeyRetrieval=false}}
-    username: ${conexao-de-sorte-database-username:${DB_USERNAME:}}
-    password: ${conexao-de-sorte-database-password:${DB_PASSWORD:}}
+    # Configuração segura - apenas Azure Key Vault, sem fallbacks
+    url: ${conexao-de-sorte-database-r2dbc-url}
+    username: ${conexao-de-sorte-database-username}
+    password: ${conexao-de-sorte-database-password}
     pool:
       initial-size: 1  # Reduzido para startup mais rápido
       max-size: 10     # Reduzido para startup mais rápido
@@ -80,27 +80,27 @@ spring:
 
   flyway:
     enabled: true
-    # Padroniza uso de -database-jdbc-url, mantendo compatibilidade com -database-flyway-url
-    url: ${conexao-de-sorte-database-jdbc-url:${conexao-de-sorte-database-flyway-url:jdbc:mysql://localhost:3306/conexao_sorte_auth?useSSL=true&allowPublicKeyRetrieval=false}}
-    user: ${conexao-de-sorte-database-username:${DB_USERNAME:}}
-    password: ${conexao-de-sorte-database-password:${DB_PASSWORD:}}
+    # Configuração segura - apenas Azure Key Vault, sem fallbacks
+    url: ${conexao-de-sorte-database-jdbc-url}
+    user: ${conexao-de-sorte-database-username}
+    password: ${conexao-de-sorte-database-password}
     locations: classpath:db/migration
     baseline-on-migrate: true
     validate-on-migrate: false
 
 user-service:
-  url: ${USER_SERVICE_URL:http://localhost:8082}
+  url: ${USER_SERVICE_URL}
 
 # Server Configuration (aplicável a todos os perfis)
 server:
-  port: ${conexao-de-sorte-server-port:8081}
+  port: ${conexao-de-sorte-server-port}
   shutdown: graceful
   
   # SSL/TLS Configuration
   ssl:
     enabled: false  # TLS termina no Traefik (ACME) - forçar false
-    key-store: ${conexao-de-sorte-ssl-keystore-path:}
-    key-store-password: ${conexao-de-sorte-ssl-keystore-password:}
+    key-store: ${conexao-de-sorte-ssl-keystore-path}
+    key-store-password: ${conexao-de-sorte-ssl-keystore-password}
     key-store-type: PKCS12
     
   netty:
@@ -151,50 +151,46 @@ management:
   tracing:
     enabled: true
     sampling:
-      probability: ${TRACING_PROBABILITY:0.1}
+      probability: ${TRACING_PROBABILITY}
 
 # Custom Application Properties
 app:
   # JWT Configuration with secure secret management
   jwt:
     # Duracao dos tokens (em segundos)
-    access-token-validity: ${JWT_ACCESS_TOKEN_VALIDITY:3600}  # 1 hora
-    refresh-token-validity: ${JWT_REFRESH_TOKEN_VALIDITY:604800}  # 7 dias
+    access-token-validity: ${JWT_ACCESS_TOKEN_VALIDITY}  # Configurado via Key Vault
+    refresh-token-validity: ${JWT_REFRESH_TOKEN_VALIDITY}  # Configurado via Key Vault
     
     # Azure Key Vault keys - using secure naming
     key-vault:
-      enabled: ${JWT_KEYVAULT_ENABLED:true}
-      private-key-name: ${JWT_PRIVATE_KEY_NAME:conexao-de-sorte-jwt-signing-key}
-      public-key-name: ${JWT_PUBLIC_KEY_NAME:conexao-de-sorte-jwt-verification-key}
-      key-id-name: ${JWT_KEY_ID_NAME:conexao-de-sorte-jwt-key-id}
-      secret-name: ${JWT_SECRET_NAME:conexao-de-sorte-jwt-secret}
+      enabled: ${JWT_KEYVAULT_ENABLED}
+      private-key-name: ${JWT_PRIVATE_KEY_NAME}
+      public-key-name: ${JWT_PUBLIC_KEY_NAME}
+      key-id-name: ${JWT_KEY_ID_NAME}
+      secret-name: ${JWT_SECRET_NAME}
       
-    # Fallback keys for development/testing (never use in production)
-    fallback:
-      private-key: ${conexao-de-sorte-jwt-privateKey:}
-      public-key: ${conexao-de-sorte-jwt-publicKey:}
-      key-id: ${conexao-de-sorte-jwt-key-id:}
-      secret: ${conexao-de-sorte-jwt-secret:}
+    # Configuração segura - apenas Azure Key Vault, sem fallbacks
+    # Removido fallback inseguro para forçar uso exclusivo do Key Vault
       
     # Issuer e Audience
-    issuer: ${conexao-de-sorte-jwt-issuer:https://auth.conexaodesorte.com}
-    audience: ${JWT_AUDIENCE:conexao-de-sorte}
+    issuer: ${conexao-de-sorte-jwt-issuer}
+    audience: ${JWT_AUDIENCE}
     
     # JWKS cache
-    jwks-cache-duration: ${JWT_JWKS_CACHE_DURATION:3600}  # 1 hora
+    jwks-cache-duration: ${JWT_JWKS_CACHE_DURATION}  # Configurado via Key Vault
     
     # Security settings
-    algorithm: ${JWT_ALGORITHM:RS256}
+    algorithm: ${JWT_ALGORITHM}
     rotation:
-      enabled: ${JWT_ROTATION_ENABLED:true}
-      schedule: ${JWT_ROTATION_SCHEDULE:0 2 * * *}  # Daily at 2 AM
+      enabled: ${JWT_ROTATION_ENABLED}
+      schedule: ${JWT_ROTATION_SCHEDULE}  # Configurado via Key Vault
 
   # CORS Configuration
   cors:
-    allowed-origins: ${conexao-de-sorte-cors-allowed-origins:http://localhost:3000,https://app.conexaodesorte.com}
+    allowed-origins: ${conexao-de-sorte-cors-allowed-origins}
     allowed-methods: GET,POST,PUT,DELETE,OPTIONS
     allowed-headers: "*"
-    allow-credentials: ${conexao-de-sorte-cors-allow-credentials:true}
+    allow-credentials: ${conexao-de-sorte-cors-allow-credentials}
     max-age: 3600
 
   # Rate Limiting
@@ -223,26 +219,26 @@ app:
       
   # Feature Flags
   features:
-    auth-microservice: ${FEATURE_AUTH_MS:false}
-    jwks-rotation: ${FEATURE_JWKS_ROTATION:true}
-    audit-logging: ${FEATURE_AUDIT_LOGGING:true}
-    metrics-collection: ${FEATURE_METRICS:true}
+    auth-microservice: ${FEATURE_AUTH_MS}
+    jwks-rotation: ${FEATURE_JWKS_ROTATION}
+    audit-logging: ${FEATURE_AUDIT_LOGGING}
+    metrics-collection: ${FEATURE_METRICS}
 
 # Logging Configuration
 logging:
   level:
-    "[br.tec.facilitaservicos.autenticacao]": ${LOG_LEVEL:INFO}
-    "[org.springframework.security]": ${SECURITY_LOG_LEVEL:WARN}
-    "[org.springframework.r2dbc]": ${R2DBC_LOG_LEVEL:WARN}
-    "[io.r2dbc.mysql]": ${MYSQL_LOG_LEVEL:WARN}
-    "[com.azure]": ${AZURE_LOG_LEVEL:WARN}
+    "[br.tec.facilitaservicos.autenticacao]": ${LOG_LEVEL}
+    "[org.springframework.security]": ${SECURITY_LOG_LEVEL}
+    "[org.springframework.r2dbc]": ${R2DBC_LOG_LEVEL}
+    "[io.r2dbc.mysql]": ${MYSQL_LOG_LEVEL}
+    "[com.azure]": ${AZURE_LOG_LEVEL}
     
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level [%X{traceId:-},%X{spanId:-}] %logger{36} - %msg%n"
     file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level [%X{traceId:-},%X{spanId:-}] %logger{36} - %msg%n"
     
   file:
-    name: ${LOG_FILE:logs/autenticacao.log}
+    name: ${LOG_FILE}
 
 # OpenAPI Documentation
 springdoc:
@@ -286,7 +282,7 @@ spring:
     azure:
       keyvault:
         secret:
-          enabled: ${AZURE_KEYVAULT_ENABLED:true}
+          enabled: ${AZURE_KEYVAULT_ENABLED}
           
 # Configurações específicas de produção (sobrescrevendo padrões)
 server:
@@ -296,7 +292,7 @@ server:
 app:
   jwt:
     key-vault:
-      enabled: ${JWT_KEYVAULT_ENABLED:true}
+      enabled: ${JWT_KEYVAULT_ENABLED}
   features:
     auth-microservice: true
     jwks-rotation: true
