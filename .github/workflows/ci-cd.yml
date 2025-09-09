@@ -149,10 +149,10 @@ jobs:
         id: secrets
         shell: bash
         env:
-          VAULT_ENDPOINT: ${{ secrets.AZURE_KEYVAULT_ENDPOINT }}
+          VAULT_NAME: ${{ secrets.AZURE_KEYVAULT_NAME }}
         run: |
           set -euo pipefail
-          DB_PASS=$(az keyvault secret show --vault-name "$VAULT_ENDPOINT" --name conexao-de-sorte-database-password -o tsv --query value)
+          DB_PASS=$(az keyvault secret show --vault-name "$VAULT_NAME" --name conexao-de-sorte-database-password -o tsv --query value)
           echo "::add-mask::$DB_PASS"
           printf "%s" "$DB_PASS" > db_pass.txt
 
@@ -207,9 +207,9 @@ jobs:
 
       - name: Provisionar secret runtime
         env:
-          VAULT_ENDPOINT: ${{ secrets.AZURE_KEYVAULT_ENDPOINT }}
+          VAULT_NAME: ${{ secrets.AZURE_KEYVAULT_NAME }}
         run: |
-          DB_PASS=$(az keyvault secret show --vault-name "$VAULT_ENDPOINT" --name conexao-de-sorte-database-password -o tsv --query value)
+          DB_PASS=$(az keyvault secret show --vault-name "$VAULT_NAME" --name conexao-de-sorte-database-password -o tsv --query value)
           printf "%s" "$DB_PASS" | docker secret create db_password - 2>/dev/null || docker secret update db_password -
 
       - name: Deploy via docker stack
