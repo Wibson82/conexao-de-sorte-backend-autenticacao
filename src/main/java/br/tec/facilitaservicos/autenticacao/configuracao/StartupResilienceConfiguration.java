@@ -42,9 +42,9 @@ public class StartupResilienceConfiguration {
     /**
      * 🛡️ Configuração otimizada de Connection Factory com timeouts reduzidos
      */
-    @Bean
-    @ConditionalOnProperty(value = "spring.r2dbc.url")
-    public ConnectionFactory connectionFactory() {
+    @Bean("startupConnectionFactory")
+    @ConditionalOnProperty(value = "app.resilience.startup.connection-factory.enabled", havingValue = "true", matchIfMissing = false)
+    public ConnectionFactory startupConnectionFactory() {
         
         String url = System.getProperty("spring.r2dbc.url", System.getenv("SPRING_R2DBC_URL"));
         if (url == null) {

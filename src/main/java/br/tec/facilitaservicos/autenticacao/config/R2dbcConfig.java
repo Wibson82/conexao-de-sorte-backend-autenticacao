@@ -20,7 +20,10 @@ import org.springframework.transaction.ReactiveTransactionManager;
 import java.time.Duration;
 
 @Configuration
-@EnableR2dbcRepositories(basePackages = "br.tec.facilitaservicos.autenticacao.repository")
+@EnableR2dbcRepositories(basePackages = {
+    "br.tec.facilitaservicos.autenticacao.repository",
+    "br.tec.facilitaservicos.usuario.repository"
+})
 @EnableR2dbcAuditing
 public class R2dbcConfig extends AbstractR2dbcConfiguration {
 

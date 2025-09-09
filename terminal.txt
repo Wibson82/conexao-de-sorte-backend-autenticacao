@@ -127,3 +127,76 @@ Listening for transport dt_socket at address: 5005
 Error: Process completed with exit code 1.
 
 Terceira parte:
+Run CONTAINER_NAME="autenticacao-microservice"
+� Waiting for service to be ready...
+⏳ Waiting for service readiness... (0/180 seconds)
+⏳ Waiting for service readiness... (10/180 seconds)
+⏳ Waiting for service readiness... (20/180 seconds)
+⏳ Waiting for service readiness... (30/180 seconds)
+⏳ Waiting for service readiness... (40/180 seconds)
+⏳ Waiting for service readiness... (50/180 seconds)
+⏳ Waiting for service readiness... (60/180 seconds)
+⏳ Waiting for service readiness... (70/180 seconds)
+⏳ Waiting for service readiness... (80/180 seconds)
+⏳ Waiting for service readiness... (90/180 seconds)
+⏳ Waiting for service readiness... (100/180 seconds)
+⏳ Waiting for service readiness... (110/180 seconds)
+⏳ Waiting for service readiness... (120/180 seconds)
+⏳ Waiting for service readiness... (130/180 seconds)
+⏳ Waiting for service readiness... (140/180 seconds)
+⏳ Waiting for service readiness... (150/180 seconds)
+⏳ Waiting for service readiness... (160/180 seconds)
+⏳ Waiting for service readiness... (170/180 seconds)
+❌ Service failed to become ready within 180 seconds
+� Container logs:
+{"@timestamp":"2025-09-09T12:45:13.431449004-03:00","level":"DEBUG","logger_name":"org.springframework.beans.factory.support.DefaultListableBeanFactory","message":"Creating shared instance of singleton bean 'postAuthorizeAuthorizationAdvisor'"}
+{"@timestamp":"2025-09-09T12:45:13.431668574-03:00","level":"DEBUG","logger_name":"org.springframework.beans.factory.support.DefaultListableBeanFactory","message":"Creating shared instance of singleton bean 'postAuthorizeAuthorizationMethodInterceptor'"}
+{"@timestamp":"2025-09-09T12:45:13.432567049-03:00","level":"DEBUG","logger_name":"org.springframework.beans.factory.support.DefaultListableBeanFactory","message":"Creating shared instance of singleton bean 'authorizeReturnObjectAdvisor'"}
+{"@timestamp":"2025-09-09T12:45:13.432788011-03:00","level":"DEBUG","logger_name":"org.springframework.beans.factory.support.DefaultListableBeanFactory","message":"Creating shared instance of singleton bean 'authorizeReturnObjectMethodInterceptor'"}
+{"@timestamp":"2025-09-09T12:45:13.439581364-03:00","level":"DEBUG","logger_name":"org.springframework.beans.factory.support.DefaultListableBeanFactory","message":"Creating shared instance of singleton bean 'org.springframework.transaction.config.internalTransactionAdvisor'"}
+{"@timestamp":"2025-09-09T12:45:13.439903136-03:00","level":"DEBUG","logger_name":"org.springframework.beans.factory.support.DefaultListableBeanFactory","message":"Creating shared instance of singleton bean 'org.springframework.transaction.annotation.ProxyTransactionManagementConfiguration'"}
+{"@timestamp":"2025-09-09T12:45:13.450419859-03:00","level":"DEBUG","logger_name":"org.springframework.beans.factory.support.DefaultListableBeanFactory","message":"Creating shared instance of singleton bean 'transactionAttributeSource'"}
+{"@timestamp":"2025-09-09T12:45:13.472704432-03:00","level":"DEBUG","logger_name":"org.springframework.beans.factory.support.DefaultListableBeanFactory","message":"Creating shared instance of singleton bean 'transactionInterceptor'"}
+{"@timestamp":"2025-09-09T12:45:13.473413895-03:00","level":"DEBUG","logger_name":"org.springframework.beans.factory.support.DefaultListableBeanFactory","message":"Autowiring by type from bean name 'transactionInterceptor' via factory method to bean named 'transactionAttributeSource'"}
+{"@timestamp":"2025-09-09T12:45:13.494373581-03:00","level":"DEBUG","logger_name":"org.springframework.beans.factory.support.DefaultListableBeanFactory","message":"Autowiring by type from bean name 'org.springframework.transaction.config.internalTransactionAdvisor' via factory method to bean named 'transactionAttributeSource'"}
+{"@timestamp":"2025-09-09T12:45:13.494646962-03:00","level":"DEBUG","logger_name":"org.springframework.beans.factory.support.DefaultListableBeanFactory","message":"Autowiring by type from bean name 'org.springframework.transaction.config.internalTransactionAdvisor' via factory method to bean named 'transactionInterceptor'"}
+{"@timestamp":"2025-09-09T12:45:13.505542736-03:00","level":"DEBUG","logger_name":"org.springframework.beans.factory.support.DefaultListableBeanFactory","message":"Creating shared instance of singleton bean 'cacheOperationSource'"}
+{"@timestamp":"2025-09-09T12:45:13.51608723-03:00","level":"DEBUG","logger_name":"org.springframework.beans.factory.support.DefaultListableBeanFactory","message":"Creating shared instance of singleton bean 'cacheInterceptor'"}
+{"@timestamp":"2025-09-09T12:45:13.516494132-03:00","level":"DEBUG","logger_name":"org.springframework.beans.factory.support.DefaultListableBeanFactory","message":"Autowiring by type from bean name 'cacheInterceptor' via factory method to bean named 'cacheOperationSource'"}
+{"@timestamp":"2025-09-09T12:45:13.52818085-03:00","level":"DEBUG","logger_name":"org.springframework.beans.factory.support.DefaultListableBeanFactory","message":"Autowiring by type from bean name 'org.springframework.cache.config.internalCacheAdvisor' via factory method to bean named 'cacheOperationSource'"}
+{"@timestamp":"2025-09-09T12:45:13.528441192-03:00","level":"DEBUG","logger_name":"org.springframework.beans.factory.support.DefaultListableBeanFactory","message":"Autowiring by type from bean name 'org.springframework.cache.config.internalCacheAdvisor' via factory method to bean named 'cacheInterceptor'"}
+{"@timestamp":"2025-09-09T12:45:13.534701834-03:00","level":"DEBUG","logger_name":"org.springframework.beans.factory.support.DefaultListableBeanFactory","message":"Creating shared instance of singleton bean 'healthEndpointGroupsBeanPostProcessor'"}
+{"@timestamp":"2025-09-09T12:45:13.537823689-03:00","level":"DEBUG","logger_name":"org.springframework.beans.factory.support.DefaultListableBeanFactory","message":"Creating shared instance of singleton bean 'metricsRepositoryMethodInvocationListenerBeanPostProcessor'"}
+{"@timestamp":"2025-09-09T12:45:13.54196066-03:00","level":"DEBUG","logger_name":"org.springframework.beans.factory.support.DefaultListableBeanFactory","message":"Creating shared instance of singleton bean 'observationRegistryPostProcessor'"}
+{"@timestamp":"2025-09-09T12:45:13.548869575-03:00","level":"DEBUG","logger_name":"org.springframework.beans.factory.support.DefaultListableBeanFactory","message":"Creating shared instance of singleton bean 'configurationPropertiesBeans'"}
+{"@timestamp":"2025-09-09T12:45:13.555154506-03:00","level":"DEBUG","logger_name":"org.springframework.beans.factory.support.DefaultListableBeanFactory","message":"Creating shared instance of singleton bean 'serverCodecConfigurerEndpointObjectMapperBeanPostProcessor'"}
+{"@timestamp":"2025-09-09T12:45:13.561533009-03:00","level":"DEBUG","logger_name":"org.springframework.beans.factory.support.DefaultListableBeanFactory","message":"Creating shared instance of singleton bean 'nettyReactiveWebServerFactory'"}
+{"@timestamp":"2025-09-09T12:45:13.56195888-03:00","level":"DEBUG","logger_name":"org.springframework.beans.factory.support.DefaultListableBeanFactory","message":"Creating shared instance of singleton bean 'org.springframework.boot.autoconfigure.web.reactive.ReactiveWebServerFactoryConfiguration$EmbeddedNetty'"}
+{"@timestamp":"2025-09-09T12:45:13.56591728-03:00","level":"DEBUG","logger_name":"org.springframework.beans.factory.support.DefaultListableBeanFactory","message":"Creating shared instance of singleton bean 'reactorResourceFactory'"}
+{"@timestamp":"2025-09-09T12:45:13.566412793-03:00","level":"DEBUG","logger_name":"org.springframework.beans.factory.support.DefaultListableBeanFactory","message":"Creating shared instance of singleton bean 'org.springframework.boot.autoconfigure.reactor.netty.ReactorNettyConfigurations$ReactorResourceFactoryConfiguration'"}
+{"@timestamp":"2025-09-09T12:45:13.56995675-03:00","level":"DEBUG","logger_name":"org.springframework.beans.factory.support.DefaultListableBeanFactory","message":"Creating shared instance of singleton bean 'spring.reactor.netty-org.springframework.boot.autoconfigure.reactor.netty.ReactorNettyProperties'"}
+{"@timestamp":"2025-09-09T12:45:13.572723684-03:00","level":"DEBUG","logger_name":"org.springframework.beans.factory.support.DefaultListableBeanFactory","message":"Creating shared instance of singleton bean 'org.springframework.boot.context.properties.BoundConfigurationProperties'"}
+{"@timestamp":"2025-09-09T12:45:13.578731994-03:00","level":"DEBUG","logger_name":"org.springframework.beans.factory.support.DefaultListableBeanFactory","message":"Creating shared instance of singleton bean 'defaultsBindHandlerAdvisor'"}
+{"@timestamp":"2025-09-09T12:45:13.578958415-03:00","level":"DEBUG","logger_name":"org.springframework.beans.factory.support.DefaultListableBeanFactory","message":"Creating shared instance of singleton bean 'org.springframework.cloud.commons.config.CommonsConfigAutoConfiguration'"}
+{"@timestamp":"2025-09-09T12:45:13.584286372-03:00","level":"DEBUG","logger_name":"org.springframework.beans.factory.support.DefaultListableBeanFactory","message":"Creating shared instance of singleton bean 'loadBalancerClientsDefaultsMappingsProvider'"}
+{"@timestamp":"2025-09-09T12:45:13.584689085-03:00","level":"DEBUG","logger_name":"org.springframework.beans.factory.support.DefaultListableBeanFactory","message":"Creating shared instance of singleton bean 'org.springframework.cloud.client.loadbalancer.LoadBalancerDefaultMappingsProviderAutoConfiguration'"}
+{"@timestamp":"2025-09-09T12:45:13.588532214-03:00","level":"DEBUG","logger_name":"org.springframework.beans.factory.support.DefaultListableBeanFactory","message":"Autowiring by type from bean name 'defaultsBindHandlerAdvisor' via factory method to bean named 'loadBalancerClientsDefaultsMappingsProvider'"}
+{"@timestamp":"2025-09-09T12:45:13.60360557-03:00","level":"DEBUG","logger_name":"org.springframework.beans.factory.support.DefaultListableBeanFactory","message":"Autowiring by type from bean name 'reactorResourceFactory' via factory method to bean named 'spring.reactor.netty-org.springframework.boot.autoconfigure.reactor.netty.ReactorNettyProperties'"}
+{"@timestamp":"2025-09-09T12:45:13.613299789-03:00","level":"DEBUG","logger_name":"org.springframework.beans.factory.support.DefaultListableBeanFactory","message":"Autowiring by type from bean name 'nettyReactiveWebServerFactory' via factory method to bean named 'reactorResourceFactory'"}
+{"@timestamp":"2025-09-09T12:45:13.619894871-03:00","level":"DEBUG","logger_name":"org.springframework.beans.factory.support.DefaultListableBeanFactory","message":"Creating shared instance of singleton bean 'reactiveWebServerFactoryCustomizer'"}
+{"@timestamp":"2025-09-09T12:45:13.620565455-03:00","level":"DEBUG","logger_name":"org.springframework.beans.factory.support.DefaultListableBeanFactory","message":"Creating shared instance of singleton bean 'org.springframework.boot.autoconfigure.web.reactive.ReactiveWebServerFactoryAutoConfiguration'"}
+{"@timestamp":"2025-09-09T12:45:13.625415449-03:00","level":"DEBUG","logger_name":"org.springframework.beans.factory.support.DefaultListableBeanFactory","message":"Creating shared instance of singleton bean 'server-org.springframework.boot.autoconfigure.web.ServerProperties'"}
+{"@timestamp":"2025-09-09T12:45:13.6572772-03:00","level":"DEBUG","logger_name":"org.springframework.beans.factory.support.DefaultListableBeanFactory","message":"Autowiring by type from bean name 'reactiveWebServerFactoryCustomizer' via factory method to bean named 'server-org.springframework.boot.autoconfigure.web.ServerProperties'"}
+{"@timestamp":"2025-09-09T12:45:13.66134628-03:00","level":"DEBUG","logger_name":"org.springframework.beans.factory.support.DefaultListableBeanFactory","message":"Creating shared instance of singleton bean 'sslBundleRegistry'"}
+{"@timestamp":"2025-09-09T12:45:13.662183924-03:00","level":"DEBUG","logger_name":"org.springframework.beans.factory.support.DefaultListableBeanFactory","message":"Creating shared instance of singleton bean 'org.springframework.boot.autoconfigure.ssl.SslAutoConfiguration'"}
+{"@timestamp":"2025-09-09T12:45:13.664405535-03:00","level":"DEBUG","logger_name":"org.springframework.beans.factory.support.DefaultListableBeanFactory","message":"Creating shared instance of singleton bean 'spring.ssl-org.springframework.boot.autoconfigure.ssl.SslProperties'"}
+{"@timestamp":"2025-09-09T12:45:13.66720673-03:00","level":"DEBUG","logger_name":"org.springframework.beans.factory.support.DefaultListableBeanFactory","message":"Autowiring by type from bean name 'org.springframework.boot.autoconfigure.ssl.SslAutoConfiguration' via constructor to bean named 'org.springframework.boot.web.reactive.context.AnnotationConfigReactiveWebServerApplicationContext@6ce90bc5'"}
+{"@timestamp":"2025-09-09T12:45:13.667553292-03:00","level":"DEBUG","logger_name":"org.springframework.beans.factory.support.DefaultListableBeanFactory","message":"Autowiring by type from bean name 'org.springframework.boot.autoconfigure.ssl.SslAutoConfiguration' via constructor to bean named 'spring.ssl-org.springframework.boot.autoconfigure.ssl.SslProperties'"}
+{"@timestamp":"2025-09-09T12:45:13.672487966-03:00","level":"DEBUG","logger_name":"org.springframework.beans.factory.support.DefaultListableBeanFactory","message":"Creating shared instance of singleton bean 'sslPropertiesSslBundleRegistrar'"}
+{"@timestamp":"2025-09-09T12:45:13.672920008-03:00","level":"DEBUG","logger_name":"org.springframework.beans.factory.support.DefaultListableBeanFactory","message":"Creating shared instance of singleton bean 'fileWatcher'"}
+{"@timestamp":"2025-09-09T12:45:13.674845208-03:00","level":"DEBUG","logger_name":"org.springframework.beans.factory.support.DefaultListableBeanFactory","message":"Autowiring by type from bean name 'sslPropertiesSslBundleRegistrar' via factory method to bean named 'fileWatcher'"}
+{"@timestamp":"2025-09-09T12:45:13.686316545-03:00","level":"DEBUG","logger_name":"org.springframework.beans.factory.support.DefaultListableBeanFactory","message":"Creating shared instance of singleton bean 'nettyWebServerFactoryCustomizer'"}
+{"@timestamp":"2025-09-09T12:45:13.687402381-03:00","level":"DEBUG","logger_name":"org.springframework.beans.factory.support.DefaultListableBeanFactory","message":"Creating shared instance of singleton bean 'org.springframework.boot.autoconfigure.web.embedded.EmbeddedWebServerFactoryCustomizerAutoConfiguration$NettyWebServerFactoryCustomizerConfiguration'"}
+{"@timestamp":"2025-09-09T12:45:13.68935035-03:00","level":"DEBUG","logger_name":"org.springframework.beans.factory.support.DefaultListableBeanFactory","message":"Autowiring by type from bean name 'nettyWebServerFactoryCustomizer' via factory method to bean named 'environment'"}
+{"@timestamp":"2025-09-09T12:45:13.689528092-03:00","level":"DEBUG","logger_name":"org.springframework.beans.factory.support.DefaultListableBeanFactory","message":"Autowiring by type from bean name 'nettyWebServerFactoryCustomizer' via factory method to bean named 'server-org.springframework.boot.autoconfigure.web.ServerProperties'"}
+Error: Process completed with exit code 1.
