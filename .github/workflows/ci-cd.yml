@@ -148,11 +148,22 @@ jobs:
       - name: Extrair senha DB (Key Vault) ▶ arquivo temporário
         id: secrets
         shell: bash
-        env:
-          VAULT_NAME: ${{ secrets.AZURE_KEYVAULT_NAME }}
         run: |
           set -euo pipefail
-          DB_PASS=$(az keyvault secret show --vault-name "$VAULT_NAME" --name conexao-de-sorte-database-password -o tsv --query value)
+          VAULT_ENDPOINT="${{ secrets.AZURE_KEYVAULT_ENDPOINT }}"
+          if [[ "$VAULT_ENDPOINT" =~ https://([^.]+)\.vault\.azure\.net ]]; then
+            VAULT="${BASH_REMATCH[1]}"
+          else
+            echo "ERROR: Invalid AZURE_KEYVAULT_ENDPOINT format: $VAULT_ENDPOINT" >&2
+            exit 1
+          fi
+          
+          echo "Loading secret from Azure Key Vault: $VAULT" >&2
+          DB_PASS=$(az keyvault secret show --vault-name "$VAULT" --name conexao-de-sorte-database-password --query value -o tsv 2>/dev/null)
+          if [ $? -ne 0 ] || [ -z "$DB_PASS" ]; then
+            echo "ERROR: Secret conexao-de-sorte-database-password not found in Azure Key Vault $VAULT" >&2
+            exit 1
+          fi
           echo "::add-mask::$DB_PASS"
           printf "%s" "$DB_PASS" > db_pass.txt
 
@@ -206,10 +217,23 @@ jobs:
           enable-AzPSSession: false
 
       - name: Provisionar secret runtime
-        env:
-          VAULT_NAME: ${{ secrets.AZURE_KEYVAULT_NAME }}
+        shell: bash
         run: |
-          DB_PASS=$(az keyvault secret show --vault-name "$VAULT_NAME" --name conexao-de-sorte-database-password -o tsv --query value)
+          set -euo pipefail
+          VAULT_ENDPOINT="${{ secrets.AZURE_KEYVAULT_ENDPOINT }}"
+          if [[ "$VAULT_ENDPOINT" =~ https://([^.]+)\.vault\.azure\.net ]]; then
+            VAULT="${BASH_REMATCH[1]}"
+          else
+            echo "ERROR: Invalid AZURE_KEYVAULT_ENDPOINT format: $VAULT_ENDPOINT" >&2
+            exit 1
+          fi
+          
+          echo "Loading secret from Azure Key Vault: $VAULT" >&2
+          DB_PASS=$(az keyvault secret show --vault-name "$VAULT" --name conexao-de-sorte-database-password --query value -o tsv 2>/dev/null)
+          if [ $? -ne 0 ] || [ -z "$DB_PASS" ]; then
+            echo "ERROR: Secret conexao-de-sorte-database-password not found in Azure Key Vault $VAULT" >&2
+            exit 1
+          fi
           printf "%s" "$DB_PASS" | docker secret create db_password - 2>/dev/null || docker secret update db_password -
 
       - name: Deploy via docker stack
