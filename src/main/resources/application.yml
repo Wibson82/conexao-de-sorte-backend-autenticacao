@@ -66,9 +66,9 @@ spring:
       
   r2dbc:
     # Preferencialmente usa -database-r2dbc-url; mantém compat com -database-url
-    url: ${conexao-de-sorte-database-r2dbc-url:${conexao-de-sorte-database-url:r2dbc:mysql://mysql-proxy:6033/conexao_auth?useSSL=true&allowPublicKeyRetrieval=false}}
-    username: ${conexao-de-sorte-database-username:}
-    password: ${conexao-de-sorte-database-password:}
+    url: ${conexao-de-sorte-database-r2dbc-url:${conexao-de-sorte-database-url:r2dbc:mysql://localhost:3306/conexao_sorte_auth?useSSL=true&allowPublicKeyRetrieval=false}}
+    username: ${conexao-de-sorte-database-username:${DB_USERNAME:}}
+    password: ${conexao-de-sorte-database-password:${DB_PASSWORD:}}
     pool:
       initial-size: 1  # Reduzido para startup mais rápido
       max-size: 10     # Reduzido para startup mais rápido
@@ -81,9 +81,9 @@ spring:
   flyway:
     enabled: true
     # Padroniza uso de -database-jdbc-url, mantendo compatibilidade com -database-flyway-url
-    url: ${conexao-de-sorte-database-jdbc-url:${conexao-de-sorte-database-flyway-url:jdbc:mysql://mysql-proxy:6033/conexao_auth?useSSL=true&allowPublicKeyRetrieval=false}}
-    user: ${conexao-de-sorte-database-username:}
-    password: ${conexao-de-sorte-database-password:}
+    url: ${conexao-de-sorte-database-jdbc-url:${conexao-de-sorte-database-flyway-url:jdbc:mysql://localhost:3306/conexao_sorte_auth?useSSL=true&allowPublicKeyRetrieval=false}}
+    user: ${conexao-de-sorte-database-username:${DB_USERNAME:}}
+    password: ${conexao-de-sorte-database-password:${DB_PASSWORD:}}
     locations: classpath:db/migration
     baseline-on-migrate: true
     validate-on-migrate: false
@@ -126,8 +126,8 @@ management:
         
   endpoint:
     health:
-      show-details: when-authorized
-      show-components: when-authorized
+      show-details: always
+      show-components: always
       probes:
         enabled: true
         
