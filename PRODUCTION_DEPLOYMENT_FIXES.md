@@ -3,7 +3,7 @@
 ## ⚠️ PROBLEMAS IDENTIFICADOS NO LOG DE PRODUÇÃO
 
 ### 1. **PERFIL DEV EM PRODUÇÃO** - CRÍTICO ❌
-**Problema**: Serviço executando com `spring.profiles.active=dev`
+**Problema**: Serviço executando com `spring.profiles.active=dev` (CORRIGIDO)
 **Solução**: Definir `SPRING_PROFILES_ACTIVE=prod` no deployment
 
 ### 2. **JDWP DEBUG EXPOSTO** - VULNERABILIDADE CRÍTICA 🔴
@@ -28,7 +28,7 @@
 ```yaml
 # deployment.yaml ou docker-compose.yml
 environment:
-  - SPRING_PROFILES_ACTIVE=prod  # ← CRÍTICO: Mudar de "dev" para "prod"
+  - SPRING_PROFILES_ACTIVE=prod  # ← CRÍTICO: Configurado corretamente para produção
   
   # Azure Key Vault (obrigatório para produção)
   - AZURE_KEYVAULT_ENABLED=true
