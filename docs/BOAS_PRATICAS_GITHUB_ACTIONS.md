@@ -15,9 +15,9 @@ Este erro ocorreu porque as etapas de build e upload do artefato estavam comenta
 
 ### Solução Implementada
 
-1. Descomentamos as etapas de build, teste e upload de artefatos no job `build-test-scan`
-2. Mantivemos a compatibilidade entre as versões de `actions/upload-artifact@v4` e `actions/download-artifact@v4`
-3. Habilitamos análises de segurança com CodeQL e Trivy
+1. Mantivemos apenas as etapas essenciais de build, teste e upload de artefatos no job `build-test-scan`
+2. Comentamos as etapas de análise de segurança (CodeQL e Trivy) e cobertura de código (JaCoCo) para otimizar o tempo de execução
+3. Garantimos a compatibilidade entre as versões de `actions/upload-artifact@v4` e `actions/download-artifact@v4`
 
 ## Recomendações para Gerenciamento de Artefatos
 

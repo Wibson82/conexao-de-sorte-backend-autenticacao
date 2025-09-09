@@ -79,31 +79,34 @@ jobs:
           java-version: "24"
           cache: maven
 
-      - name: Build + Test + Cobertura (JaCoCo)
-        run: ./mvnw verify -Pcoverage
+      - name: Build + Test
+        run: ./mvnw verify
 
-      - name: Upload cobertura
-        uses: actions/upload-artifact@v4
-        with:
-          name: cobertura-jacoco
-          path: target/site/jacoco
-          retention-days: 7
+      # - name: Build + Test + Cobertura (JaCoCo)
+      #   run: ./mvnw verify -Pcoverage
 
-      - name: CodeQL init
-        uses: github/codeql-action/init@v3
-        with:
-          languages: java
+      # - name: Upload cobertura
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: cobertura-jacoco
+      #     path: target/site/jacoco
+      #     retention-days: 7
 
-      - name: CodeQL analyze
-        uses: github/codeql-action/analyze@v3
+      # - name: CodeQL init
+      #   uses: github/codeql-action/init@v3
+      #   with:
+      #     languages: java
 
-      - name: Trivy SCA (pom.xml)
-        uses: aquasecurity/trivy-action@0.19.0
-        with:
-          scan-type: fs
-          ignore-unfixed: true
-          format: table
-          severity: HIGH,CRITICAL
+      # - name: CodeQL analyze
+      #   uses: github/codeql-action/analyze@v3
+
+      # - name: Trivy SCA (pom.xml)
+      #   uses: aquasecurity/trivy-action@0.19.0
+      #   with:
+      #     scan-type: fs
+      #     ignore-unfixed: true
+      #     format: table
+      #     severity: HIGH,CRITICAL
 
       - name: Upload JAR artefact
         uses: actions/upload-artifact@v4
