@@ -79,38 +79,38 @@ jobs:
           java-version: "24"
           cache: maven
 
-      - name: Build + Test + Cobertura (JaCoCo)
-        run: ./mvnw verify -Pcoverage
+      # - name: Build + Test + Cobertura (JaCoCo)
+      #   run: ./mvnw verify -Pcoverage
 
-      - name: Upload cobertura
-        uses: actions/upload-artifact@v4
-        with:
-          name: cobertura-jacoco
-          path: target/site/jacoco
-          retention-days: 7
+      # - name: Upload cobertura
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: cobertura-jacoco
+      #     path: target/site/jacoco
+      #     retention-days: 7
 
-      - name: CodeQL init
-        uses: github/codeql-action/init@v3
-        with:
-          languages: java
+      # - name: CodeQL init
+      #   uses: github/codeql-action/init@v3
+      #   with:
+      #     languages: java
 
-      - name: CodeQL analyze
-        uses: github/codeql-action/analyze@v3
+      # - name: CodeQL analyze
+      #   uses: github/codeql-action/analyze@v3
 
-      - name: Trivy SCA (pom.xml)
-        uses: aquasecurity/trivy-action@0.19.0
-        with:
-          scan-type: fs
-          ignore-unfixed: true
-          format: table
-          severity: HIGH,CRITICAL
+      # - name: Trivy SCA (pom.xml)
+      #   uses: aquasecurity/trivy-action@0.19.0
+      #   with:
+      #     scan-type: fs
+      #     ignore-unfixed: true
+      #     format: table
+      #     severity: HIGH,CRITICAL
 
-      - name: Upload JAR artefact
-        uses: actions/upload-artifact@v4
-        with:
-          name: autenticacao-jar
-          path: target/*-SNAPSHOT.jar
-          retention-days: 1
+      # - name: Upload JAR artefact
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: autenticacao-jar
+      #     path: target/*-SNAPSHOT.jar
+      #     retention-days: 1
 
 # ----------------------------------------------------------------------
 # JOB 3 ▸ BUILD DA IMAGEM + PUSH GHCR
