@@ -79,8 +79,8 @@ jobs:
           java-version: "24"
           cache: maven
 
-      - name: Build + Test
-        run: ./mvnw verify
+      - name: Build + Test + Package
+        run: ./mvnw package
 
       # - name: Build + Test + Cobertura (JaCoCo)
       #   run: ./mvnw verify -Pcoverage
