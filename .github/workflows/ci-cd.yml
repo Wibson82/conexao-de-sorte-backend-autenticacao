@@ -287,13 +287,36 @@ jobs:
           
           SSL_KEYSTORE_PASSWORD=$(get_secret "conexao-de-sorte-ssl-keystore-password" "")
           
-          # Criar/atualizar Docker secrets
-          printf "%s" "$DB_PASSWORD" | docker secret create db_password - 2>/dev/null || docker secret update db_password -
-          printf "%s" "$DB_USERNAME" | docker secret create db_username - 2>/dev/null || docker secret update db_username -
-          printf "%s" "$REDIS_PASSWORD" | docker secret create redis_password - 2>/dev/null || docker secret update redis_password -
-          printf "%s" "$JWT_SIGNING_KEY" | docker secret create jwt_signing_key - 2>/dev/null || docker secret update jwt_signing_key -
-          printf "%s" "$JWT_VERIFICATION_KEY" | docker secret create jwt_verification_key - 2>/dev/null || docker secret update jwt_verification_key -
-          printf "%s" "$ENCRYPTION_MASTER_KEY" | docker secret create encryption_master_key - 2>/dev/null || docker secret update encryption_master_key -
+          # Criar/atualizar Docker secrets (remover secrets existentes antes de recriar)
+          echo "🔄 Managing Docker secrets..." >&2
+          
+          # Função para criar/recriar secret
+          create_or_update_secret() {
+            local secret_name="$1"
+            local secret_value="$2"
+            
+            if [ -n "$secret_value" ]; then
+              # Remover secret existente se existir
+              docker secret rm "$secret_name" 2>/dev/null || true
+              # Criar novo secret
+              printf "%s" "$secret_value" | docker secret create "$secret_name" - 2>/dev/null
+              if [ $? -eq 0 ]; then
+                echo "✅ Secret $secret_name created successfully" >&2
+              else
+                echo "❌ Failed to create secret $secret_name" >&2
+              fi
+            else
+              echo "⚠️ Skipping empty secret $secret_name" >&2
+            fi
+          }
+          
+          # Criar todos os secrets
+          create_or_update_secret "db_password" "$DB_PASSWORD"
+          create_or_update_secret "db_username" "$DB_USERNAME"
+          create_or_update_secret "redis_password" "$REDIS_PASSWORD"
+          create_or_update_secret "jwt_signing_key" "$JWT_SIGNING_KEY"
+          create_or_update_secret "jwt_verification_key" "$JWT_VERIFICATION_KEY"
+          create_or_update_secret "encryption_master_key" "$ENCRYPTION_MASTER_KEY"
           
           # Salvar variáveis de ambiente para o próximo step
           echo "REDIS_HOST=$REDIS_HOST" >> $GITHUB_ENV
