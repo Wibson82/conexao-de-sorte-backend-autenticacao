@@ -15,10 +15,12 @@ Este erro ocorreu porque as etapas de build e upload do artefato estavam comenta
 
 ### Solução Implementada
 
-1. Mantivemos apenas as etapas essenciais de build, teste e upload de artefatos no job `build-test-scan`
-2. Alteramos o comando de build de `./mvnw verify` para `./mvnw package` para garantir a geração correta do arquivo JAR
-3. Comentamos as etapas de análise de segurança (CodeQL e Trivy) e cobertura de código (JaCoCo) para otimizar o tempo de execução
-4. Garantimos a compatibilidade entre as versões de `actions/upload-artifact@v4` e `actions/download-artifact@v4`
+1. **Identificação da causa raiz**: O artefato JAR estava sendo gerado com o nome `auth-users-1.0.0.jar`, mas o workflow estava procurando por `*-SNAPSHOT.jar`
+2. **Correção do path do artefato**: Alteramos o path no `upload-artifact` de `target/*-SNAPSHOT.jar` para `target/auth-users-*.jar`
+3. Mantivemos apenas as etapas essenciais de build, teste e upload de artefatos no job `build-test-scan`
+4. Alteramos o comando de build de `./mvnw verify` para `./mvnw package` para garantir a geração correta do arquivo JAR
+5. Comentamos as etapas de análise de segurança (CodeQL e Trivy) e cobertura de código (JaCoCo) para otimizar o tempo de execução
+6. Garantimos a compatibilidade entre as versões de `actions/upload-artifact@v4` e `actions/download-artifact@v4`
 
 ## Recomendações para Gerenciamento de Artefatos
 

@@ -112,7 +112,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: autenticacao-jar
-          path: target/*-SNAPSHOT.jar
+          path: target/auth-users-*.jar
           retention-days: 1
 
 # ----------------------------------------------------------------------
