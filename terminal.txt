@@ -1,37 +1,298 @@
-root@srv649924:~# docker container ps
-CONTAINER ID   IMAGE                                                                                                          COMMAND                  CREATED          STATUS                            PORTS                                                                                                                       NAMES
-1b4aa4893061   ghcr.io/wibson82/conexao-de-sorte-backend-autenticacao/autenticacao:c7e89f856d47dc91d19a79aaac7ac92c7ff7e82f   "dumb-init -- sh -c …"   10 seconds ago   Up 5 seconds (health: starting)   5005/tcp, 8081/tcp                                                                                                          conexao_autenticacao.1.duoxs1xt0l420n2qwqlt6samz
-5c2407cd549a   criptografia-kms:2025-09-09-175756                                                                             "dumb-init -- java -…"   3 minutes ago    Up 8 seconds (health: starting)   0.0.0.0:8088->8080/tcp, [::]:8088->8080/tcp                                                                                 criptografia-kms-microservice
-e69ac47a3d7e   facilita/conexao-de-sorte-frontend:latest                                                                      "dumb-init -- serve …"   2 hours ago      Up 2 hours (healthy)              0.0.0.0:3000->3000/tcp, [::]:3000->3000/tcp                                                                                 conexao-frontend
-10556ce04dbe   autenticacao:2025-09-09-160053                                                                                 "dumb-init -- sh -c …"   2 hours ago      Up 9 seconds (health: starting)   5005/tcp, 8081/tcp, 0.0.0.0:8081->8080/tcp, [::]:8081->8080/tcp                                                             autenticacao-microservice
-f8066978d0b9   traefik:v3.1                                                                                                   "/entrypoint.sh trae…"   4 days ago       Up 4 days                         0.0.0.0:80->80/tcp, [::]:80->80/tcp, 0.0.0.0:443->443/tcp, [::]:443->443/tcp, 0.0.0.0:8080->8080/tcp, [::]:8080->8080/tcp   traefik-microservices
-3dcbb32fc262   mysql:8.4                                                                                                      "docker-entrypoint.s…"   4 weeks ago      Up 3 weeks                        0.0.0.0:3306->3306/tcp, [::]:3306->3306/tcp, 33060/tcp                                                                      conexao-mysql
-037bafe7e94c   facilita/conexao-de-sorte-backend:30-07-2025-17-01                                                             "dumb-init -- /app/b…"   5 weeks ago      Up 3 weeks (healthy)              8080/tcp                                                                                                                    backend-prod
-97ff4c87c716   b5239da13ab0                                                                                                   "/bin/prometheus --c…"   2 months ago     Up 3 weeks                        0.0.0.0:9090->9090/tcp, [::]:9090->9090/tcp                                                                                 conexao-prometheus
-root@srv649924:~# docker logs 1b4aa4893061
-Starting AUTH service in DEBUG mode on port 5005
-Listening for transport dt_socket at address: 5005
-18:01:29,148 |-WARN in org.springframework.boot.logging.logback.SpringProfileIfNestedWithinSecondPhaseElementSanityChecker@18245eb0 - <springProfile> elements cannot be nested within an <appender>, <logger> or <root> element
-18:01:29,158 |-WARN in org.springframework.boot.logging.logback.SpringProfileIfNestedWithinSecondPhaseElementSanityChecker@18245eb0 - Element <logger> at line 96 contains a nested <springProfile> element at line 98
-{"@timestamp":"2025-09-09T18:01:31.49827399-03:00","level":"ERROR","logger_name":"br.tec.facilitaservicos.autenticacao.configuracao.R2dbcUrlNormalizer","message":"❌ Erro ao processar propriedade spring.r2dbc.url: Could not resolve placeholder 'conexao-de-sorte-database-r2dbc-url' in value \"${conexao-de-sorte-database-r2dbc-url}\"","stack_trace":"org.springframework.util.PlaceholderResolutionException: Could not resolve placeholder 'conexao-de-sorte-database-r2dbc-url' in value \"${conexao-de-sorte-database-r2dbc-url}\"\n\tat org.springframework.util.PlaceholderResolutionException.withValue(PlaceholderResolutionException.java:81)\n\tat org.springframework.util.PlaceholderParser$ParsedValue.resolve(PlaceholderParser.java:423)\n\tat org.springframework.util.PlaceholderParser.replacePlaceholders(PlaceholderParser.java:128)\n\tat org.springframework.util.PropertyPlaceholderHelper.parseStringValue(PropertyPlaceholderHelper.java:118)\n\tat org.springframework.util.PropertyPlaceholderHelper.replacePlaceholders(PropertyPlaceholderHelper.java:114)\n\tat org.springframework.core.env.AbstractPropertyResolver.doResolvePlaceholders(AbstractPropertyResolver.java:293)\n\tat org.springframework.core.env.AbstractPropertyResolver.resolveRequiredPlaceholders(AbstractPropertyResolver.java:264)\n\tat org.springframework.core.env.AbstractPropertyResolver.resolveNestedPlaceholders(AbstractPropertyResolver.java:284)\n\tat org.springframework.boot.context.properties.source.ConfigurationPropertySourcesPropertyResolver.getProperty(ConfigurationPropertySourcesPropertyResolver.java:81)\n\tat org.springframework.boot.context.properties.source.ConfigurationPropertySourcesPropertyResolver.getProperty(ConfigurationPropertySourcesPropertyResolver.java:62)\n\tat org.springframework.core.env.AbstractEnvironment.getProperty(AbstractEnvironment.java:555)\n\tat br.tec.facilitaservicos.autenticacao.configuracao.R2dbcUrlNormalizer.onApplicationEvent(R2dbcUrlNormalizer.java:120)\n\tat br.tec.facilitaservicos.autenticacao.configuracao.R2dbcUrlNormalizer.onApplicationEvent(R2dbcUrlNormalizer.java:38)\n\tat org.springframework.context.event.SimpleApplicationEventMulticaster.doInvokeListener(SimpleApplicationEventMulticaster.java:185)\n\tat org.springframework.context.event.SimpleApplicationEventMulticaster.invokeListener(SimpleApplicationEventMulticaster.java:178)\n\tat org.springframework.context.event.SimpleApplicationEventMulticaster.multicastEvent(SimpleApplicationEventMulticaster.java:156)\n\tat org.springframework.context.event.SimpleApplicationEventMulticaster.multicastEvent(SimpleApplicationEventMulticaster.java:138)\n\tat org.springframework.boot.context.event.EventPublishingRunListener.multicastInitialEvent(EventPublishingRunListener.java:136)\n\tat org.springframework.boot.context.event.EventPublishingRunListener.environmentPrepared(EventPublishingRunListener.java:81)\n\tat org.springframework.boot.SpringApplicationRunListeners.lambda$environmentPrepared$2(SpringApplicationRunListeners.java:64)\n\tat java.base/java.lang.Iterable.forEach(Unknown Source)\n\tat org.springframework.boot.SpringApplicationRunListeners.doWithListeners(SpringApplicationRunListeners.java:118)\n\tat org.springframework.boot.SpringApplicationRunListeners.doWithListeners(SpringApplicationRunListeners.java:112)\n\tat org.springframework.boot.SpringApplicationRunListeners.environmentPrepared(SpringApplicationRunListeners.java:63)\n\tat org.springframework.boot.SpringApplication.prepareEnvironment(SpringApplication.java:353)\n\tat org.springframework.boot.SpringApplication.run(SpringApplication.java:313)\n\tat org.springframework.boot.SpringApplication.run(SpringApplication.java:1361)\n\tat org.springframework.boot.SpringApplication.run(SpringApplication.java:1350)\n\tat br.tec.facilitaservicos.autenticacao.AutenticacaoApplication.main(AutenticacaoApplication.java:38)\n\tat java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(Unknown Source)\n\tat java.base/java.lang.reflect.Method.invoke(Unknown Source)\n\tat org.springframework.boot.loader.launch.Launcher.launch(Launcher.java:102)\n\tat org.springframework.boot.loader.launch.Launcher.launch(Launcher.java:64)\n\tat org.springframework.boot.loader.launch.JarLauncher.main(JarLauncher.java:40)\n"}
+name: "� Autenticacao – CI/CD Pipeline"
 
-  .   ____          _            __ _ _
- /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
-( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
- \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
-  '  |____| .__|_| |_|_| |_\__, | / / / /
- =========|_|==============|___/=/_/_/_/
+  on:
+    push:
+      branches: [ main ]
+    pull_request:
+      branches: [ main ]
+    workflow_dispatch:
+      inputs:
+        environment:
+          description: "Destino do deploy"
+          required: false
+          default: "production"
+          type: choice
+          options: [ staging, production ]
 
- :: Spring Boot ::                (v3.5.5)
+  # ----------------------------------------------------------------------
+  # PARÂMETROS GERAIS
+  # ----------------------------------------------------------------------
 
-{"@timestamp":"2025-09-09T18:01:32.273515519-03:00","level":"INFO","logger_name":"br.tec.facilitaservicos.autenticacao.AutenticacaoApplication","message":"Starting AutenticacaoApplication v1.0.0 using Java 24.0.2 with PID 6 (/app/app.jar started by appuser in /app)"}
-{"@timestamp":"2025-09-09T18:01:32.290767414-03:00","level":"INFO","logger_name":"br.tec.facilitaservicos.autenticacao.AutenticacaoApplication","message":"The following 1 profile is active: \"prod\""}
-{"@timestamp":"2025-09-09T18:01:38.629681665-03:00","level":"WARN","logger_name":"org.springframework.boot.web.reactive.context.AnnotationConfigReactiveWebServerApplicationContext","message":"Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.BeanDefinitionStoreException: Failed to process import candidates for configuration class [br.tec.facilitaservicos.autenticacao.AutenticacaoApplication]: Error processing condition on org.springdoc.webflux.core.configuration.MultipleOpenApiSupportConfiguration$SpringDocWebMvcActuatorDifferentConfiguration"}
-{"@timestamp":"2025-09-09T18:01:38.711704946-03:00","level":"INFO","logger_name":"org.springframework.boot.autoconfigure.logging.ConditionEvaluationReportLogger","message":"\n\nError starting ApplicationContext. To display the condition evaluation report re-run your application with 'debug' enabled."}
-{"@timestamp":"2025-09-09T18:01:38.822554237-03:00","level":"ERROR","logger_name":"org.springframework.boot.SpringApplication","message":"Application run failed","stack_trace":"org.springframework.beans.factory.BeanDefinitionStoreException: Failed to process import candidates for configuration class [br.tec.facilitaservicos.autenticacao.AutenticacaoApplication]: Error processing condition on org.springdoc.webflux.core.configuration.MultipleOpenApiSupportConfiguration$SpringDocWebMvcActuatorDifferentConfiguration\n\tat org.springframework.context.annotation.ConfigurationClassParser.processImports(ConfigurationClassParser.java:627)\n\tat org.springframework.context.annotation.ConfigurationClassParser$DeferredImportSelectorGroupingHandler.lambda$processGroupImports$1(ConfigurationClassParser.java:850)\n\tat java.base/java.lang.Iterable.forEach(Unknown Source)\n\tat org.springframework.context.annotation.ConfigurationClassParser$DeferredImportSelectorGroupingHandler.processGroupImports(ConfigurationClassParser.java:847)\n\tat org.springframework.context.annotation.ConfigurationClassParser$DeferredImportSelectorHandler.process(ConfigurationClassParser.java:817)\n\tat org.springframework.context.annotation.ConfigurationClassParser.parse(ConfigurationClassParser.java:198)\n\tat org.springframework.context.annotation.ConfigurationClassPostProcessor.processConfigBeanDefinitions(ConfigurationClassPostProcessor.java:418)\n\tat org.springframework.context.annotation.ConfigurationClassPostProcessor.postProcessBeanDefinitionRegistry(ConfigurationClassPostProcessor.java:290)\n\tat org.springframework.context.support.PostProcessorRegistrationDelegate.invokeBeanDefinitionRegistryPostProcessors(PostProcessorRegistrationDelegate.java:349)\n\tat org.springframework.context.support.PostProcessorRegistrationDelegate.invokeBeanFactoryPostProcessors(PostProcessorRegistrationDelegate.java:118)\n\tat org.springframework.context.support.AbstractApplicationContext.invokeBeanFactoryPostProcessors(AbstractApplicationContext.java:791)\n\tat org.springframework.context.support.AbstractApplicationContext.refresh(AbstractApplicationContext.java:609)\n\tat org.springframework.boot.web.reactive.context.ReactiveWebServerApplicationContext.refresh(ReactiveWebServerApplicationContext.java:66)\n\tat org.springframework.boot.SpringApplication.refresh(SpringApplication.java:752)\n\tat org.springframework.boot.SpringApplication.refreshContext(SpringApplication.java:439)\n\tat org.springframework.boot.SpringApplication.run(SpringApplication.java:318)\n\tat org.springframework.boot.SpringApplication.run(SpringApplication.java:1361)\n\tat org.springframework.boot.SpringApplication.run(SpringApplication.java:1350)\n\tat br.tec.facilitaservicos.autenticacao.AutenticacaoApplication.main(AutenticacaoApplication.java:38)\n\tat java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(Unknown Source)\n\tat java.base/java.lang.reflect.Method.invoke(Unknown Source)\n\tat org.springframework.boot.loader.launch.Launcher.launch(Launcher.java:102)\n\tat org.springframework.boot.loader.launch.Launcher.launch(Launcher.java:64)\n\tat org.springframework.boot.loader.launch.JarLauncher.main(JarLauncher.java:40)\nCaused by: java.lang.IllegalStateException: Error processing condition on org.springdoc.webflux.core.configuration.MultipleOpenApiSupportConfiguration$SpringDocWebMvcActuatorDifferentConfiguration\n\tat org.springframework.boot.autoconfigure.condition.SpringBootCondition.matches(SpringBootCondition.java:60)\n\tat org.springframework.context.annotation.ConditionEvaluator.shouldSkip(ConditionEvaluator.java:99)\n\tat org.springframework.context.annotation.ConfigurationClassParser.processConfigurationClass(ConfigurationClassParser.java:247)\n\tat org.springframework.context.annotation.ConfigurationClassParser.processMemberClasses(ConfigurationClassParser.java:427)\n\tat org.springframework.context.annotation.ConfigurationClassParser.doProcessConfigurationClass(ConfigurationClassParser.java:308)\n\tat org.springframework.context.annotation.ConfigurationClassParser.processConfigurationClass(ConfigurationClassParser.java:281)\n\tat org.springframework.context.annotation.ConfigurationClassParser.processImports(ConfigurationClassParser.java:617)\n\t... 23 common frames omitted\nCaused by: org.springframework.util.PlaceholderResolutionException: Could not resolve placeholder 'conexao-de-sorte-server-port' in value \"${conexao-de-sorte-server-port}\"\n\tat org.springframework.util.PlaceholderResolutionException.withValue(PlaceholderResolutionException.java:81)\n\tat org.springframework.util.PlaceholderParser$ParsedValue.resolve(PlaceholderParser.java:423)\n\tat org.springframework.util.PlaceholderParser.replacePlaceholders(PlaceholderParser.java:128)\n\tat org.springframework.util.PropertyPlaceholderHelper.parseStringValue(PropertyPlaceholderHelper.java:118)\n\tat org.springframework.util.PropertyPlaceholderHelper.replacePlaceholders(PropertyPlaceholderHelper.java:114)\n\tat org.springframework.core.env.AbstractPropertyResolver.doResolvePlaceholders(AbstractPropertyResolver.java:293)\n\tat org.springframework.core.env.AbstractPropertyResolver.resolveRequiredPlaceholders(AbstractPropertyResolver.java:264)\n\tat org.springframework.core.env.AbstractPropertyResolver.resolveNestedPlaceholders(AbstractPropertyResolver.java:284)\n\tat org.springframework.boot.context.properties.source.ConfigurationPropertySourcesPropertyResolver.getProperty(ConfigurationPropertySourcesPropertyResolver.java:81)\n\tat org.springframework.boot.context.properties.source.ConfigurationPropertySourcesPropertyResolver.getProperty(ConfigurationPropertySourcesPropertyResolver.java:67)\n\tat org.springframework.core.env.AbstractEnvironment.getProperty(AbstractEnvironment.java:566)\n\tat org.springframework.boot.actuate.autoconfigure.web.server.ManagementPortType.getPortProperty(ManagementPortType.java:64)\n\tat org.springframework.boot.actuate.autoconfigure.web.server.ManagementPortType.get(ManagementPortType.java:58)\n\tat org.springframework.boot.actuate.autoconfigure.web.server.OnManagementPortCondition.getMatchOutcome(OnManagementPortCondition.java:49)\n\tat org.springframework.boot.autoconfigure.condition.SpringBootCondition.matches(SpringBootCondition.java:47)\n\t... 29 common frames omitted\n"}
-root@srv649924:~# docker logs 1b4aa4893061
-Starting AUTH service in DEBUG mode on port 5005
-Listening for transport dt_socket at address: 5005
-18:01:29,148 |-WARN in org.springframework.boot.logging.logback.SpringProfileIfNestedWithinSecondPhaseElementSanityChecker@18245eb0 - <springProfile> elements cannot be nested within an <appender>, <logger> or <root> element
-18:01:29,158 |-WARN in org.springframework.boot.logging.logback.SpringProfileIfNestedWithinSecondPhaseElementSanityChecker@18245eb0 - Element <logger> at line 96 contains a nested <springProfile> element at line 98
-{"@timestamp":"2025-09-09T18:01:31.49827399-03:00","level":"ERROR","logger_name":"br.tec.facilitaservicos.autenticacao.configuracao.R2dbcUrlNormalizer","message":"❌ Erro ao processar propriedade spring.r2dbc.url: Could not resolve placeholder 'conexao-de-sorte-database-r2dbc-url' in value \"${conexao-de-sorte-database-r2dbc-url}\"","stack_trace":"org.springframework.util.PlaceholderResolutionException: Could not resolve placeholder 'conexao-de-sorte-database-r2dbc-url' in value \"${conexao-de-sorte-database-r2dbc-url}\"\n\tat org.springframework.util.PlaceholderResolutionException.withValue(PlaceholderResolutionException.java:81)\n\tat org.springframework.util.PlaceholderParser$ParsedValue.resolve(PlaceholderParser.java:423)\n\tat org.springframework.util.PlaceholderParser.replacePlaceholders(PlaceholderParser.java:128)\n\tat org.springframework.util.PropertyPlaceholderHelper.parseStringValue(PropertyPlaceholderHelper.java:118)\n\tat org.springframework.util.PropertyPlaceholderHelper.replacePlaceholders(PropertyPlaceholderHelper.java:114)\n\tat org.springframework.core.env.AbstractPropertyResolver.doResolvePlaceholders(AbstractPropertyResolver.java:293)\n\tat org.springframework.core.env.AbstractPropertyResolver.resolveRequiredPlaceholders(AbstractPropertyResolver.java:264)\n\tat org.springframework.core.env.AbstractPropertyResolver.resolveNestedPlaceholders(AbstractPropertyResolver.java:284)\n\tat org.springframework.boot.context.properties.source.ConfigurationPropertySourcesPropertyResolver.getProperty(ConfigurationPropertySourcesPropertyResolver.java:81)\n\tat org.springframework.boot.context.properties.source.ConfigurationPropertySourcesPropertyResolver.getProperty(ConfigurationPropertySourcesPropertyResolver.java:62)\n\tat org.springframework.core.env.AbstractEnvironment.getProperty(AbstractEnvironment.java:555)\n\tat br.tec.facilitaservicos.autenticacao.configuracao.R2dbcUrlNormalizer.onApplicationEvent(R2dbcUrlNormalizer.java:120)\n\tat br.tec.facilitaservicos.autenticacao.configuracao.R2dbcUrlNormalizer.onApplicationEvent(R2dbcUrlNormalizer.java:38)\n\tat org.springframework.context.event.SimpleApplicationEventMulticaster.doInvokeListener(SimpleApplicationEventMulticaster.java:185)\n\tat org.springframework.context.event.SimpleApplicationEventMulticaster.invokeListener(SimpleApplicationEventMulticaster.java:178)\n\tat org.springframework.context.event.SimpleApplicationEventMulticaster.multicastEvent(SimpleApplicationEventMulticaster.java:156)\n\tat org.springframework.context.event.SimpleApplicationEventMulticaster.multicastEvent(SimpleApplicationEventMulticaster.java:138)\n\tat org.springframework.boot.context.event.EventPublishingRunListener.multicastInitialEvent(EventPublishingRunListener.java:136)\n\tat org.springframework.boot.context.event.EventPublishingRunListener.environmentPrepared(EventPublishingRunListener.java:81)\n\tat org.springframework.boot.SpringApplicationRunListeners.lambda$environmentPrepared$2(SpringApplicationRunListeners.java:64)\n\tat java.base/java.lang.Iterable.forEach(Unknown Source)\n\tat org.springframework.boot.SpringApplicationRunListeners.doWithListeners(SpringApplicationRunListeners.java:118)\n\tat org.springframework.boot.SpringApplicationRunListeners.doWithListeners(SpringApplicationRunListeners.java:112)\n\tat org.springframework.boot.SpringApplicationRunListeners.environmentPrepared(SpringApplicationRunListeners.java:63)\n\tat org.springframework.boot.SpringApplication.prepareEnvironment(SpringApplication.java:353)\n\tat org.springframework.boot.SpringApplication.run(SpringApplication.java:313)\n\tat org.springframework.boot.SpringApplication.run(SpringApplication.java:1361)\n\tat org.springframework.boot.SpringApplication.run(SpringApplication.java:1350)\n\tat br.tec.facilitaservicos.autenticacao.AutenticacaoApplication.main(AutenticacaoApplication.java:38)\n\tat java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(Unknown Source)\n\tat java.base/java.lang.reflect.Method.invoke(Unknown Source)\n\tat org.springframework.boot.loader.launch.Launcher.launch(Launcher.java:102)\n\tat org.springframework.boot.loader.launch.Launcher.launch(Launcher.java:64)\n\tat org.springframework.boot.loader.launch.JarLauncher.main(JarLauncher.java:40)\n"}
+  env:
+    SERVICE_NAME: autenticacao
+    TZ: America/Sao_Paulo
+
+  # Observação: IDs públicos (CLIENT_ID, TENANT_ID, SUBSCRIPTION_ID) devem
+  # ser cadastrados como **Repository Variables** (Settings ▸ Variables).
+  # Eles são lidos via `vars.<NAME>` — não via `secrets`.
+
+  concurrency:
+    group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name == 'workflow_dispatch' && inputs.environment || 'production' }}
+    cancel-in-progress: false
+
+  # ----------------------------------------------------------------------
+  # JOB 1 ▸ VALIDAÇÃO DO WORKSPACE
+  # ----------------------------------------------------------------------
+
+  jobs:
+    validate-environment:
+      runs-on: ubuntu-latest
+      timeout-minutes: 20
+      steps:
+        - uses: actions/checkout@v4
+
+        - name: "Guard: proibir r2dbc:h2 fora de testes"
+          shell: bash
+          run: |
+            set -euo pipefail
+            FOUND=$(grep -R --line-number --include='*.yml' --include='*.yaml' --include='*.properties' "r2dbc:h2" src || true)
+            if echo "$FOUND" | grep -v "src/test/" | grep -q "r2dbc:h2"; then
+              echo "❌ r2dbc:h2 encontrado fora de src/test" >&2
+              echo "$FOUND" >&2
+              exit 1
+            fi
+
+        - name: "Guard: dependência H2 não‑test"
+          shell: bash
+          run: |
+            ./mvnw -q dependency:list -DincludeScope=compile -DoutputFile=deps.txt
+            if grep -E "com.h2database:h2|io.r2dbc:r2dbc-h2" deps.txt; then
+              echo "❌ H2 presente em scope de produção" >&2
+              exit 1
+            fi
+
+  # ----------------------------------------------------------------------
+  # JOB 2 ▸ BUILD + TEST + SAST/SCA
+  # ----------------------------------------------------------------------
+
+    build-test-scan:
+      needs: validate-environment
+      runs-on: ubuntu-latest
+      timeout-minutes: 45
+      steps:
+        - uses: actions/checkout@v4
+
+        - name: Setup Java 24 (Temurin)
+          uses: actions/setup-java@v4
+          with:
+            distribution: temurin
+            java-version: "24"
+            cache: maven
+
+        - name: Build + Test + Package
+          run: ./mvnw package
+
+        # - name: Build + Test + Cobertura (JaCoCo)
+        #   run: ./mvnw verify -Pcoverage
+
+        # - name: Upload cobertura
+        #   uses: actions/upload-artifact@v4
+        #   with:
+        #     name: cobertura-jacoco
+        #     path: target/site/jacoco
+        #     retention-days: 7
+
+        # - name: CodeQL init
+        #   uses: github/codeql-action/init@v3
+        #   with:
+        #     languages: java
+
+        # - name: CodeQL analyze
+        #   uses: github/codeql-action/analyze@v3
+
+        # - name: Trivy SCA (pom.xml)
+        #   uses: aquasecurity/trivy-action@0.19.0
+        #   with:
+        #     scan-type: fs
+        #     ignore-unfixed: true
+        #     format: table
+        #     severity: HIGH,CRITICAL
+
+        - name: Upload JAR artefact
+          uses: actions/upload-artifact@v4
+          with:
+            name: autenticacao-jar
+            path: target/auth-users-*.jar
+            retention-days: 1
+
+  # ----------------------------------------------------------------------
+  # JOB 3 ▸ BUILD DA IMAGEM + PUSH GHCR
+  # ----------------------------------------------------------------------
+
+    build-image:
+      needs: build-test-scan
+      runs-on: ubuntu-latest
+      timeout-minutes: 30
+      outputs:
+        image: ${{ steps.build.outputs.image }}
+      permissions:
+        packages: write
+        id-token: write
+        contents: read
+      steps:
+        - uses: actions/checkout@v4
+
+        - name: Download JAR artefact
+          uses: actions/download-artifact@v4
+          with:
+            name: autenticacao-jar
+            path: target
+
+        # ─── OIDC login no Azure para acessar Key Vault ───────────────────
+        - name: Azure Login (OIDC)
+          uses: azure/login@v2
+          with:
+            client-id: ${{ secrets.AZURE_CLIENT_ID }}
+            tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+            subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+            enable-AzPSSession: false
+
+        - name: Extrair senha DB (Key Vault) ▶ arquivo temporário
+          id: secrets
+          shell: bash
+          run: |
+            set -euo pipefail
+            VAULT_ENDPOINT="${{ secrets.AZURE_KEYVAULT_ENDPOINT }}"
+            if [[ "$VAULT_ENDPOINT" =~ https://([^.]+)\.vault\.azure\.net ]]; then
+              VAULT="${BASH_REMATCH[1]}"
+            else
+              echo "ERROR: Invalid AZURE_KEYVAULT_ENDPOINT format: $VAULT_ENDPOINT" >&2
+              exit 1
+            fi
+            
+            echo "Loading secret from Azure Key Vault: $VAULT" >&2
+            DB_PASS=$(az keyvault secret show --vault-name "$VAULT" --name conexao-de-sorte-database-password --query value -o tsv 2>/dev/null)
+            if [ $? -ne 0 ] || [ -z "$DB_PASS" ]; then
+              echo "ERROR: Secret conexao-de-sorte-database-password not found in Azure Key Vault $VAULT" >&2
+              exit 1
+            fi
+            echo "::add-mask::$DB_PASS"
+            printf "%s" "$DB_PASS" > db_pass.txt
+
+        # ─── Login no GHCR ────────────────────────────────────────────────
+        - name: Login GHCR
+          uses: docker/login-action@v3
+          with:
+            registry: ghcr.io
+            username: ${{ github.actor }}
+            password: ${{ secrets.GITHUB_TOKEN }}
+
+        - name: Setup Buildx
+          uses: docker/setup-buildx-action@v3
+
+        - name: Build & Push
+          id: build
+          run: |
+            REPO_LOWER=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+            IMAGE=ghcr.io/$REPO_LOWER/autenticacao:${{ github.sha }}
+            docker buildx build \
+              --tag "$IMAGE" \
+              --push \
+              --provenance=true \
+              --sbom=true \
+              --secret id=db_password,src=db_pass.txt \
+              --file Dockerfile .
+            rm -f db_pass.txt
+            echo "image=$IMAGE" >> "$GITHUB_OUTPUT"
+
+  # ----------------------------------------------------------------------
+  # JOB 4 ▸ DEPLOY SELF‑HOSTED (Docker Swarm + secrets)
+  # ----------------------------------------------------------------------
+
+    deploy-selfhosted:
+      needs: build-image
+      runs-on: [ self-hosted, Linux, X64, conexao, conexao-de-sorte-backend-autenticacao ]
+      timeout-minutes: 30
+      if: |
+        github.ref == 'refs/heads/main' &&
+        (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.environment == 'production'))
+      permissions:
+        id-token: write
+        contents: read
+      steps:
+        - name: Login GHCR (Self-hosted)
+          uses: docker/login-action@v3
+          with:
+            registry: ghcr.io
+            username: ${{ github.actor }}
+            password: ${{ secrets.GITHUB_TOKEN }}
+
+        - name: Pull image do GHCR
+          run: docker pull "${{ needs.build-image.outputs.image }}"
+
+        - name: Azure Login (OIDC)
+          uses: azure/login@v2
+          with:
+            client-id: ${{ secrets.AZURE_CLIENT_ID }}
+            tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+            subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+            enable-AzPSSession: false
+
+        - name: Provisionar secret runtime
+          shell: bash
+          run: |
+            set -euo pipefail
+            VAULT_ENDPOINT="${{ secrets.AZURE_KEYVAULT_ENDPOINT }}"
+            if [[ "$VAULT_ENDPOINT" =~ https://([^.]+)\.vault\.azure\.net ]]; then
+              VAULT="${BASH_REMATCH[1]}"
+            else
+              echo "ERROR: Invalid AZURE_KEYVAULT_ENDPOINT format: $VAULT_ENDPOINT" >&2
+              exit 1
+            fi
+            
+            echo "Loading secret from Azure Key Vault: $VAULT" >&2
+            DB_PASS=$(az keyvault secret show --vault-name "$VAULT" --name conexao-de-sorte-database-password --query value -o tsv 2>/dev/null)
+            if [ $? -ne 0 ] || [ -z "$DB_PASS" ]; then
+              echo "ERROR: Secret conexao-de-sorte-database-password not found in Azure Key Vault $VAULT" >&2
+              exit 1
+            fi
+            printf "%s" "$DB_PASS" | docker secret create db_password - 2>/dev/null || docker secret update db_password -
+
+        - name: Deploy via docker stack
+          run: |
+            STACK=conexao
+            IMAGE="${{ needs.build-image.outputs.image }}"
+            cat <<EOF | docker stack deploy --with-registry-auth -c - $STACK
+            version: "3.9"
+            services:
+              autenticacao:
+                image: $IMAGE
+                secrets:
+                  - db_password
+                environment:
+                  SPRING_PROFILES_ACTIVE: prod,azure
+                  TZ: America/Sao_Paulo
+                deploy:
+                  restart_policy:
+                    condition: on-failure
+                  replicas: 1
+            secrets:
+              db_password:
+                external: true
+            EOF
+
+        - name: Health‑check
+          run: docker service ls | grep autenticacao
+
+  # ----------------------------------------------------------------------
+  # JOB 5 ▸ NOTIFY
+  # ----------------------------------------------------------------------
+
+    notify:
+      if: always()
+      runs-on: ubuntu-latest
+      needs: [ build-test-scan, deploy-selfhosted ]
+      steps:
+        - name: Slack notify
+          env:
+            WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
+            RESULT: ${{ needs.deploy-selfhosted.result }}
+          shell: bash
+          run: |
+            if [ -z "$WEBHOOK" ]; then
+              echo "ℹ️ Slack webhook não configurado; etapa ignorada" && exit 0
+            fi
+            COLOR=good && [ "$RESULT" != "success" ] && COLOR=danger
+            curl -X POST -H 'Content-type: application/json' \
+                 --data "{\"text\":\"Autenticacao – $RESULT\",\"attachments\":[{\"color\":\"$COLOR\"}]}" \
+                 "$WEBHOOK"
