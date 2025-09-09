@@ -36,7 +36,7 @@ import java.time.Duration;
  * @since 2024
  */
 @Configuration
-@ConditionalOnProperty(value = "app.resilience.startup.enabled", havingValue = "true", matchIfMissing = true)
+@ConditionalOnProperty(value = "app.resilience.startup.enabled", havingValue = "true", matchIfMissing = false)
 public class StartupResilienceConfiguration {
 
     /**
