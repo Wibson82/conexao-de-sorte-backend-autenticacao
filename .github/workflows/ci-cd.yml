@@ -123,6 +123,8 @@ jobs:
     needs: build-test-scan
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    outputs:
+      image: ${{ steps.build.outputs.image }}
     permissions:
       packages: write
       id-token: write
