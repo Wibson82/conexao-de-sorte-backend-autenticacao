@@ -29,11 +29,9 @@
     <!-- File Appender para logs gerais -->
     <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
         <file>logs/conexao-de-sorte-auth.log</file>
-        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
             <fileNamePattern>logs/conexao-de-sorte-auth.%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
-            <timeBasedFileNamingAndTriggeringPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP">
-                <maxFileSize>100MB</maxFileSize>
-            </timeBasedFileNamingAndTriggeringPolicy>
+            <maxFileSize>100MB</maxFileSize>
             <maxHistory>30</maxHistory>
             <totalSizeCap>3GB</totalSizeCap>
         </rollingPolicy>
@@ -53,11 +51,9 @@
     <!-- Appender específico para auditoria do Key Vault -->
     <appender name="KEYVAULT_AUDIT" class="ch.qos.logback.core.rolling.RollingFileAppender">
         <file>logs/keyvault-audit.log</file>
-        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
             <fileNamePattern>logs/keyvault-audit.%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
-            <timeBasedFileNamingAndTriggeringPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP">
-                <maxFileSize>50MB</maxFileSize>
-            </timeBasedFileNamingAndTriggeringPolicy>
+            <maxFileSize>50MB</maxFileSize>
             <maxHistory>90</maxHistory>
             <totalSizeCap>2GB</totalSizeCap>
         </rollingPolicy>
@@ -77,11 +73,9 @@
     <!-- Appender para métricas e performance -->
     <appender name="METRICS" class="ch.qos.logback.core.rolling.RollingFileAppender">
         <file>logs/metrics.log</file>
-        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
             <fileNamePattern>logs/metrics.%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
-            <timeBasedFileNamingAndTriggeringPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP">
-                <maxFileSize>50MB</maxFileSize>
-            </timeBasedFileNamingAndTriggeringPolicy>
+            <maxFileSize>50MB</maxFileSize>
             <maxHistory>30</maxHistory>
             <totalSizeCap>1GB</totalSizeCap>
         </rollingPolicy>
@@ -133,11 +127,7 @@
         <appender-ref ref="FILE"/>
     </root>
 
-    <!-- Configurações específicas por perfil -->
-    <springProfile name="dev">
-        <!-- Em desenvolvimento, logs mais verbosos no console -->
-        <logger name="br.tec.facilitaservicos.autenticacao" level="DEBUG"/>
-    </springProfile>
+    <!-- Perfil dev removido para evitar conflitos -->
 
     <springProfile name="test">
         <!-- Em testes, reduzir logs para melhor performance -->

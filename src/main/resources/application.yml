@@ -88,8 +88,7 @@ spring:
     baseline-on-migrate: true
     validate-on-migrate: false
 
-user-service:
-  url: ${conexao-de-sorte-user-service-url}
+# Configuração do serviço de usuário movida para variável conexao-de-sorte-user-service-url
 
 # Server Configuration (aplicável a todos os perfis)
 server:
