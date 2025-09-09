@@ -181,7 +181,8 @@ jobs:
       - name: Build & Push
         id: build
         run: |
-          IMAGE=ghcr.io/${{ github.repository }}/autenticacao:${{ github.sha }}
+          REPO_LOWER=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+          IMAGE=ghcr.io/$REPO_LOWER/autenticacao:${{ github.sha }}
           docker buildx build \
             --tag "$IMAGE" \
             --push \
