@@ -24,7 +24,7 @@ main(){
     DB_R2DBC_URL=$(az keyvault secret show --vault-name "$VAULT_NAME" --name "conexao-de-sorte-database-url" --query value -o tsv 2>/dev/null || echo "")
   fi
 
-  DB_NAME_SPECIFIC=$(az keyvault secret show --vault-name "$VAULT_NAME" --name "conexao-de-sorte-autenticacao-database-name" --query value -o tsv 2>/dev/null || echo "")
+  DB_NAME_SPECIFIC=$(az keyvault secret show --vault-name "$VAULT_NAME" --name "conexao-de-sorte-backend-autenticacao-database-name" --query value -o tsv 2>/dev/null || echo "")
   DB_NAME_GENERIC=$(az keyvault secret show --vault-name "$VAULT_NAME" --name "conexao-de-sorte-database-name" --query value -o tsv 2>/dev/null || echo "")
   DB_NAME=${DB_NAME_SPECIFIC:-}; [[ -z "$DB_NAME" || "$DB_NAME" == "null" ]] && DB_NAME=${DB_NAME_GENERIC:-}
   [[ -z "$DB_NAME" || "$DB_NAME" == "null" ]] && DB_NAME=${DATABASE_NAME:-}
