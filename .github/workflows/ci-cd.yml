@@ -259,9 +259,6 @@ jobs:
     permissions:
       id-token: write
       contents: read
-    environment:
-      name: production
-      url: https://autenticacao.conexaodesorte.com.br
     steps:
       - name: Login GHCR (Self-hosted)
         uses: docker/login-action@v3
