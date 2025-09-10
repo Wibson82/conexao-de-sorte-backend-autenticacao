@@ -495,8 +495,38 @@ jobs:
           DB_PORT="3306"
           DB_NAME="db_autenticacao"
           
-          # Criar rede se não existir
-          docker network create --driver overlay conexao-network 2>/dev/null || true
+          # Verificar e criar rede Swarm corretamente
+          echo "🌐 Verificando rede Docker Swarm..."
+          
+          # Verificar se a rede já existe
+          if docker network ls --format "{{.Name}}" | grep -q "^conexao-network$"; then
+            echo "ℹ️  Rede conexao-network já existe"
+            
+            # Verificar se está no escopo correto
+            NETWORK_SCOPE=$(docker network inspect conexao-network --format "{{.Scope}}" 2>/dev/null || echo "unknown")
+            echo "📊 Escopo atual da rede: $NETWORK_SCOPE"
+            
+            if [ "$NETWORK_SCOPE" != "swarm" ]; then
+              echo "⚠️  Rede existe mas não está no escopo swarm, removendo..."
+              docker network rm conexao-network 2>/dev/null || true
+              sleep 2
+            fi
+          fi
+          
+          # Criar rede no escopo swarm se não existir
+          if ! docker network ls --format "{{.Name}}" | grep -q "^conexao-network$"; then
+            echo "🔧 Criando rede conexao-network no escopo swarm..."
+            docker network create \
+              --driver overlay \
+              --attachable \
+              conexao-network || {
+                echo "❌ Falha ao criar rede, tentando sem --attachable..."
+                docker network create --driver overlay conexao-network
+              }
+            echo "✅ Rede conexao-network criada com sucesso"
+          else
+            echo "✅ Rede conexao-network já configurada corretamente"
+          fi
           
           echo "🚀 Deploying $STACK com imagem: $IMAGE"
           cat <<EOF | docker stack deploy --with-registry-auth -c - $STACK
