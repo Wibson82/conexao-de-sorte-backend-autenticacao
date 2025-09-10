@@ -495,38 +495,36 @@ jobs:
           DB_PORT="3306"
           DB_NAME="db_autenticacao"
           
-          # Verificar e criar rede Swarm corretamente
-          echo "🌐 Verificando rede Docker Swarm..."
+          # ==============================
+          # INICIALIZAÇÃO DA REDE COMPARTILHADA
+          # ==============================
+          echo "🌐 Inicializando rede overlay compartilhada..."
           
-          # Verificar se a rede já existe
-          if docker network ls --format "{{.Name}}" | grep -q "^conexao-network$"; then
-            echo "ℹ️  Rede conexao-network já existe"
-            
-            # Verificar se está no escopo correto
-            NETWORK_SCOPE=$(docker network inspect conexao-network --format "{{.Scope}}" 2>/dev/null || echo "unknown")
-            echo "📊 Escopo atual da rede: $NETWORK_SCOPE"
-            
-            if [ "$NETWORK_SCOPE" != "swarm" ]; then
-              echo "⚠️  Rede existe mas não está no escopo swarm, removendo..."
-              docker network rm conexao-network 2>/dev/null || true
-              sleep 2
-            fi
+          # Primeiro remover qualquer rede local conflitante
+          if docker network ls --format "{{.Name}}\t{{.Scope}}" | grep -E "^conexao-network\s+local$"; then
+            echo "⚠️  Removendo rede local conflitante..."
+            docker network rm conexao-network 2>/dev/null || true
+            sleep 2
           fi
           
-          # Criar rede no escopo swarm se não existir
-          if ! docker network ls --format "{{.Name}}" | grep -q "^conexao-network$"; then
-            echo "🔧 Criando rede conexao-network no escopo swarm..."
+          # Verificar se a rede overlay já existe
+          if docker network ls --format "{{.Name}}\t{{.Scope}}" | grep -E "^conexao-network\s+swarm$"; then
+            echo "✅ Rede overlay conexao-network já existe"
+          else
+            echo "🔧 Criando rede overlay compartilhada conexao-network..."
             docker network create \
               --driver overlay \
               --attachable \
               conexao-network || {
-                echo "❌ Falha ao criar rede, tentando sem --attachable..."
+                echo "❌ Falha ao criar rede com --attachable, tentando sem..."
                 docker network create --driver overlay conexao-network
               }
-            echo "✅ Rede conexao-network criada com sucesso"
-          else
-            echo "✅ Rede conexao-network já configurada corretamente"
+            echo "✅ Rede overlay conexao-network criada com sucesso"
           fi
+          
+          # Verificação final
+          docker network ls | grep conexao-network
+          echo "🎯 Rede compartilhada pronta para todos os microsserviços"
           
           echo "🚀 Deploying $STACK com imagem: $IMAGE"
           cat <<EOF | docker stack deploy --with-registry-auth -c - $STACK
