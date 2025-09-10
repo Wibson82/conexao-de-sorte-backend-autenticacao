@@ -138,14 +138,62 @@ jobs:
           name: autenticacao-jar
           path: target
 
+      # ─── Validação rigorosa de secrets OIDC ──────────────────────────
+      - name: 🔐 Validar secrets Azure OIDC obrigatórios
+        shell: bash
+        run: |
+          echo "🔐 Validando secrets OIDC antes do login..."
+          
+          # Validar presença de todos os secrets obrigatórios
+          MISSING_SECRETS=""
+          if [ -z "${{ secrets.AZURE_CLIENT_ID }}" ]; then
+            MISSING_SECRETS="$MISSING_SECRETS AZURE_CLIENT_ID"
+          fi
+          if [ -z "${{ secrets.AZURE_TENANT_ID }}" ]; then
+            MISSING_SECRETS="$MISSING_SECRETS AZURE_TENANT_ID"
+          fi
+          if [ -z "${{ secrets.AZURE_SUBSCRIPTION_ID }}" ]; then
+            MISSING_SECRETS="$MISSING_SECRETS AZURE_SUBSCRIPTION_ID"
+          fi
+          if [ -z "${{ secrets.AZURE_KEYVAULT_ENDPOINT }}" ]; then
+            MISSING_SECRETS="$MISSING_SECRETS AZURE_KEYVAULT_ENDPOINT"
+          fi
+          
+          if [ -n "$MISSING_SECRETS" ]; then
+            echo "❌ Secrets obrigatórios não configurados no GitHub:$MISSING_SECRETS"
+            echo "📝 Configure em: Settings → Secrets and variables → Actions → Repository secrets"
+            exit 1
+          fi
+          
+          echo "✅ Todos os secrets OIDC estão configurados"
+
       # ─── OIDC login no Azure para acessar Key Vault ───────────────────
-      - name: Azure Login (OIDC)
+      - name: 🔑 Azure Login (OIDC)
         uses: azure/login@v2
+        timeout-minutes: 5
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
           enable-AzPSSession: false
+
+      # ─── Verificação pós-login ────────────────────────────────────────
+      - name: 🔍 Verificar conectividade Azure pós-login
+        shell: bash
+        run: |
+          echo "🔍 Verificando conectividade Azure..."
+          
+          # Verificar se conseguimos acessar a subscription
+          if ACCOUNT_INFO=$(az account show --query "{name: name, id: id, tenantId: tenantId}" -o json 2>/dev/null); then
+            echo "✅ Login Azure confirmado:"
+            echo "$ACCOUNT_INFO" | jq -r '"  Subscription: \(.name) (\(.id))"'
+            echo "$ACCOUNT_INFO" | jq -r '"  Tenant ID: \(.tenantId)"'
+          else
+            echo "❌ Falha na verificação do login Azure"
+            echo "🔍 Debug: Tentando listar subscriptions disponíveis..."
+            az account list --query "[].{Name: name, SubscriptionId: id}" -o table || true
+            exit 1
+          fi
 
       - name: Extrair senha DB (Key Vault) ▶ arquivo temporário
         id: secrets
@@ -202,13 +250,18 @@ jobs:
   deploy-selfhosted:
     needs: build-image
     runs-on: [ self-hosted, Linux, X64, conexao, conexao-de-sorte-backend-autenticacao ]
-    timeout-minutes: 30
+    timeout-minutes: 45
     if: |
       github.ref == 'refs/heads/main' &&
-      (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.environment == 'production'))
+      (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.environment == 'production')) &&
+      success() &&
+      !cancelled()
     permissions:
       id-token: write
       contents: read
+    environment:
+      name: production
+      url: https://autenticacao.conexaodesorte.com.br
     steps:
       - name: Login GHCR (Self-hosted)
         uses: docker/login-action@v3
@@ -220,13 +273,83 @@ jobs:
       - name: Pull image do GHCR
         run: docker pull "${{ needs.build-image.outputs.image }}"
 
-      - name: Azure Login (OIDC)
+      # ─── Validação de ambiente de produção ───────────────────────────
+      - name: 🔐 Validar ambiente e secrets para deploy
+        shell: bash
+        run: |
+          echo "🔐 Validando ambiente de produção..."
+          
+          # Verificar que estamos na branch main
+          if [ "${{ github.ref }}" != "refs/heads/main" ]; then
+            echo "❌ Deploy só é permitido na branch main"
+            exit 1
+          fi
+          
+          # Verificar secrets obrigatórios
+          MISSING_SECRETS=""
+          if [ -z "${{ secrets.AZURE_CLIENT_ID }}" ]; then
+            MISSING_SECRETS="$MISSING_SECRETS AZURE_CLIENT_ID"
+          fi
+          if [ -z "${{ secrets.AZURE_TENANT_ID }}" ]; then
+            MISSING_SECRETS="$MISSING_SECRETS AZURE_TENANT_ID"
+          fi
+          if [ -z "${{ secrets.AZURE_SUBSCRIPTION_ID }}" ]; then
+            MISSING_SECRETS="$MISSING_SECRETS AZURE_SUBSCRIPTION_ID"
+          fi
+          if [ -z "${{ secrets.AZURE_KEYVAULT_ENDPOINT }}" ]; then
+            MISSING_SECRETS="$MISSING_SECRETS AZURE_KEYVAULT_ENDPOINT"
+          fi
+          
+          if [ -n "$MISSING_SECRETS" ]; then
+            echo "❌ Secrets obrigatórios para produção não configurados:$MISSING_SECRETS"
+            exit 1
+          fi
+          
+          echo "✅ Ambiente de produção validado"
+
+      # ─── OIDC login no Azure para acessar Key Vault ───────────────────
+      - name: 🔑 Azure Login (OIDC) - Produção
         uses: azure/login@v2
+        timeout-minutes: 5
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
           enable-AzPSSession: false
+
+      # ─── Verificação pós-login produção ───────────────────────────────
+      - name: 🔍 Verificar conectividade Azure produção
+        shell: bash
+        run: |
+          echo "🔍 Verificando conectividade Azure para produção..."
+          
+          # Verificar subscription e tenant corretos
+          if ACCOUNT_INFO=$(az account show --query "{name: name, id: id, tenantId: tenantId}" -o json 2>/dev/null); then
+            echo "✅ Login Azure confirmado para produção:"
+            echo "$ACCOUNT_INFO" | jq -r '"  Subscription: \(.name)"'
+            echo "$ACCOUNT_INFO" | jq -r '"  Tenant ID: \(.tenantId)"'
+            
+            # Verificar se podemos acessar o Key Vault
+            VAULT_ENDPOINT="${{ secrets.AZURE_KEYVAULT_ENDPOINT }}"
+            if [[ "$VAULT_ENDPOINT" =~ https://([^.]+)\.vault\.azure\.net ]]; then
+              VAULT_NAME="${BASH_REMATCH[1]}"
+              echo "🔑 Testando acesso ao Key Vault: $VAULT_NAME"
+              
+              if az keyvault show --name "$VAULT_NAME" --query "name" -o tsv >/dev/null 2>&1; then
+                echo "✅ Acesso ao Key Vault confirmado"
+              else
+                echo "❌ Erro: Não foi possível acessar o Key Vault $VAULT_NAME"
+                echo "🔍 Verificando permissões do service principal..."
+                exit 1
+              fi
+            else
+              echo "❌ Formato inválido para AZURE_KEYVAULT_ENDPOINT"
+              exit 1
+            fi
+          else
+            echo "❌ Falha na verificação do login Azure para produção"
+            exit 1
+          fi
 
       - name: Carregar todos os segredos do Azure Key Vault
         shell: bash
