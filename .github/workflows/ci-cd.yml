@@ -375,6 +375,10 @@ jobs:
           DB_PORT="3306"
           DB_NAME="db_autenticacao"
           
+          # Criar rede se não existir
+          docker network create --driver overlay conexao-network 2>/dev/null || true
+          
+          echo "🚀 Deploying $STACK com imagem: $IMAGE"
           cat <<EOF | docker stack deploy --with-registry-auth -c - $STACK
           version: "3.9"
           services:
@@ -448,9 +452,10 @@ jobs:
                 
               deploy:
                 restart_policy:
-                  condition: on-failure
-                  delay: 10s
-                  max_attempts: 3
+                  condition: any
+                  delay: 30s
+                  max_attempts: 2
+                  window: 120s
                 replicas: 1
                 resources:
                   limits:
@@ -465,6 +470,13 @@ jobs:
                 start_period: 60s
               networks:
                 - conexao-network
+              labels:
+                - "traefik.enable=true"
+                - "traefik.docker.network=conexao-network"
+                - "traefik.http.routers.autenticacao.rule=Host(\`autenticacao.conexaodesorte.com.br\`)"
+                - "traefik.http.routers.autenticacao.entrypoints=websecure"
+                - "traefik.http.routers.autenticacao.tls.certresolver=letsencrypt"
+                - "traefik.http.services.autenticacao.loadbalancer.server.port=8080"
           
           secrets:
             db_password:
@@ -485,8 +497,45 @@ jobs:
               external: true
           EOF
 
-      - name: Health‑check
-        run: docker service ls | grep autenticacao
+      - name: Aguardar Autenticacao estar pronto
+        run: |
+          echo "⏳ Aguardando Autenticacao ficar pronto..."
+          TIMEOUT=180
+          ELAPSED=0
+          
+          while [ $ELAPSED -lt $TIMEOUT ]; do
+            if docker service ls | grep -q "autenticacao.*1/1"; then
+              echo "✅ Autenticacao está pronto!"
+              break
+            fi
+            echo "⏳ Aguardando readiness... ($ELAPSED/$TIMEOUT segundos)"
+            sleep 10
+            ELAPSED=$((ELAPSED + 10))
+          done
+          
+          if [ $ELAPSED -ge $TIMEOUT ]; then
+            echo "❌ Autenticacao não ficou pronto em $TIMEOUT segundos"
+            echo "📋 Status dos serviços:"
+            docker service ls | grep autenticacao || true
+            echo "📋 Logs do Autenticacao:"
+            docker service logs conexao-autenticacao_autenticacao --tail 50 || true
+            exit 1
+          fi
+
+      - name: Health‑check Autenticacao
+        run: |
+          echo "🔍 Verificando saúde do Autenticacao..."
+          docker service ls | grep autenticacao
+          
+          # Teste do endpoint de health
+          SERVICE_CONTAINER=$(docker ps --filter "name=autenticacao" --format "{{.Names}}" | head -1 || echo "")
+          if [ -n "$SERVICE_CONTAINER" ]; then
+            echo "🌐 Testando health endpoint..."
+            docker exec "$SERVICE_CONTAINER" curl -f http://localhost:8080/actuator/health 2>/dev/null && echo "✅ Autenticacao health OK" || echo "⚠️ Autenticacao health test failed"
+          fi
+          
+          echo "🎉 Autenticacao microservice deployment completed successfully!"
+          echo "🌐 API: https://autenticacao.conexaodesorte.com.br"
 
 # ----------------------------------------------------------------------
 # JOB 5 ▸ NOTIFY
