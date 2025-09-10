@@ -349,9 +349,25 @@ jobs:
           echo "CORS_ALLOW_CREDENTIALS=$CORS_ALLOW_CREDENTIALS" >> $GITHUB_ENV
           echo "SSL_KEYSTORE_PASSWORD=$SSL_KEYSTORE_PASSWORD" >> $GITHUB_ENV
 
+      - name: 🧹 Cleanup existing deployment
+        run: |
+          # Remove stack existente se houver
+          docker stack rm conexao-autenticacao 2>/dev/null || true
+          docker stack rm conexao 2>/dev/null || true
+          
+          # Aguardar limpeza completa
+          echo "⏳ Aguardando limpeza completa..."
+          sleep 15
+          
+          # Limpar containers órfãos do serviço autenticação
+          docker container ls -q --filter "name=autenticacao" | xargs -r docker stop
+          docker container ls -aq --filter "name=autenticacao" | xargs -r docker rm
+          
+          echo "✅ Limpeza concluída"
+
       - name: Deploy via docker stack
         run: |
-          STACK=conexao
+          STACK=conexao-autenticacao
           IMAGE="${{ needs.build-image.outputs.image }}"
           
           # Construir URLs de banco de dados
@@ -382,9 +398,9 @@ jobs:
                 SPRING_FLYWAY_URL: "jdbc:mysql://$DB_HOST:$DB_PORT/$DB_NAME"
                 
                 # Redis Configuration
-                 SPRING_DATA_REDIS_HOST: "$REDIS_HOST"
-                 SPRING_DATA_REDIS_PORT: "$REDIS_PORT"
-                 SPRING_DATA_REDIS_DATABASE: "$REDIS_DATABASE"
+                SPRING_DATA_REDIS_HOST: "$REDIS_HOST"
+                SPRING_DATA_REDIS_PORT: "$REDIS_PORT"
+                SPRING_DATA_REDIS_DATABASE: "$REDIS_DATABASE"
                 
                 # JWT Configuration
                 JWT_ISSUER: "$JWT_ISSUER"
