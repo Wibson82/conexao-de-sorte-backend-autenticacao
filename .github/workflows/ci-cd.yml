@@ -250,7 +250,7 @@ jobs:
   deploy-selfhosted:
     needs: build-image
     runs-on: [ self-hosted, Linux, X64, conexao, conexao-de-sorte-backend-autenticacao ]
-    timeout-minutes: 45
+    timeout-minutes: 8
     if: |
       github.ref == 'refs/heads/main' &&
       (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.environment == 'production')) &&
@@ -469,221 +469,104 @@ jobs:
           echo "CORS_ALLOW_CREDENTIALS=$CORS_ALLOW_CREDENTIALS" >> $GITHUB_ENV
           echo "SSL_KEYSTORE_PASSWORD=$SSL_KEYSTORE_PASSWORD" >> $GITHUB_ENV
 
-      - name: 🧹 Cleanup existing deployment
+      - name: 🚀 Deploy to Docker Swarm
         run: |
-          # Remove stack existente se houver
-          docker stack rm conexao-autenticacao 2>/dev/null || true
-          docker stack rm conexao 2>/dev/null || true
-          
-          # Aguardar limpeza completa
-          echo "⏳ Aguardando limpeza completa..."
-          sleep 15
-          
-          # Limpar containers órfãos do serviço autenticação
-          docker container ls -q --filter "name=autenticacao" | xargs -r docker stop
-          docker container ls -aq --filter "name=autenticacao" | xargs -r docker rm
-          
-          echo "✅ Limpeza concluída"
-
-      - name: Deploy via docker stack
-        run: |
-          STACK=conexao-autenticacao
           IMAGE="${{ needs.build-image.outputs.image }}"
-          
-          # Construir URLs de banco de dados
-          DB_HOST="localhost"
-          DB_PORT="3306"
-          DB_NAME="db_autenticacao"
-          
-          # ==============================
-          # INICIALIZAÇÃO DA REDE COMPARTILHADA
-          # ==============================
-          echo "🌐 Inicializando rede overlay compartilhada..."
-          
-          # Primeiro remover qualquer rede local conflitante
-          if docker network ls --format "{{.Name}}\t{{.Scope}}" | grep -E "^conexao-network\s+local$"; then
-            echo "⚠️  Removendo rede local conflitante..."
-            docker network rm conexao-network 2>/dev/null || true
-            sleep 2
-          fi
-          
-          # Verificar se a rede overlay já existe
-          if docker network ls --format "{{.Name}}\t{{.Scope}}" | grep -E "^conexao-network\s+swarm$"; then
-            echo "✅ Rede overlay conexao-network já existe"
-          else
-            echo "🔧 Criando rede overlay compartilhada conexao-network..."
-            docker network create \
-              --driver overlay \
-              --attachable \
-              conexao-network || {
-                echo "❌ Falha ao criar rede com --attachable, tentando sem..."
-                docker network create --driver overlay conexao-network
-              }
-            echo "✅ Rede overlay conexao-network criada com sucesso"
-          fi
-          
-          # Verificação final
-          docker network ls | grep conexao-network
-          echo "🎯 Rede compartilhada pronta para todos os microsserviços"
-          
-          echo "🚀 Deploying $STACK com imagem: $IMAGE"
-          cat <<EOF | docker stack deploy --with-registry-auth -c - $STACK
-          version: "3.9"
-          services:
-            autenticacao:
-              image: $IMAGE
-              secrets:
-                - db_password
-                - db_username
-                - redis_password
-                - jwt_signing_key
-                - jwt_verification_key
-                - encryption_master_key
-              environment:
-                # Spring Configuration
-                SPRING_PROFILES_ACTIVE: prod,azure
-                TZ: America/Sao_Paulo
-                SERVER_PORT: 8080
-                
-                # Database Configuration (sem placeholders)
-                SPRING_R2DBC_URL: "r2dbc:mysql://$DB_HOST:$DB_PORT/$DB_NAME"
-                SPRING_FLYWAY_URL: "jdbc:mysql://$DB_HOST:$DB_PORT/$DB_NAME"
-                
-                # Redis Configuration
-                SPRING_DATA_REDIS_HOST: "$REDIS_HOST"
-                SPRING_DATA_REDIS_PORT: "$REDIS_PORT"
-                SPRING_DATA_REDIS_DATABASE: "$REDIS_DATABASE"
-                
-                # JWT Configuration
-                JWT_ISSUER: "$JWT_ISSUER"
-                JWT_KEY_ID: "$JWT_KEY_ID"
-                JWT_SECRET: "$JWT_SECRET"
-                JWT_ALGORITHM: "RS256"
-                JWT_ACCESS_TOKEN_VALIDITY: "86400"
-                JWT_REFRESH_TOKEN_VALIDITY: "604800"
-                
-                # CORS Configuration
-                CORS_ALLOWED_ORIGINS: "$CORS_ALLOWED_ORIGINS"
-                CORS_ALLOW_CREDENTIALS: "$CORS_ALLOW_CREDENTIALS"
-                
-                # Azure Configuration
-                AZURE_CLIENT_ID: "${{ secrets.AZURE_CLIENT_ID }}"
-                AZURE_TENANT_ID: "${{ secrets.AZURE_TENANT_ID }}"
-                AZURE_KEYVAULT_ENDPOINT: "${{ secrets.AZURE_KEYVAULT_ENDPOINT }}"
-                AZURE_KEYVAULT_ENABLED: "true"
-                
-                # Security Configuration
-                SSL_KEYSTORE_PASSWORD: "$SSL_KEYSTORE_PASSWORD"
-                
-                # Feature Flags (valores padrão seguros)
-                FEATURE_AUTH_MICROSERVICE: "true"
-                FEATURE_JWKS_ROTATION: "true"
-                FEATURE_AUDIT_LOGGING: "true"
-                FEATURE_METRICS_COLLECTION: "true"
-                
-                # Log Configuration
-                LOG_LEVEL_ROOT: "INFO"
-                LOG_LEVEL_AUTENTICACAO: "INFO"
-                LOG_LEVEL_SECURITY: "WARN"
-                LOG_LEVEL_R2DBC: "WARN"
-                LOG_LEVEL_MYSQL: "WARN"
-                LOG_LEVEL_AZURE: "WARN"
-                
-                # Tracing Configuration
-                TRACING_PROBABILITY: "0.1"
-                
-                # Rate Limiting Configuration
-                RATE_LIMIT_LOGIN: "10"
-                RATE_LIMIT_LOGIN_BURST: "20"
-                RATE_LIMIT_VALIDATION: "100"
-                RATE_LIMIT_VALIDATION_BURST: "200"
-                
-              deploy:
-                restart_policy:
-                  condition: any
-                  delay: 30s
-                  max_attempts: 2
-                  window: 120s
-                replicas: 1
-                resources:
-                  limits:
-                    memory: 512M
-                  reservations:
-                    memory: 256M
-              healthcheck:
-                test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
-                interval: 30s
-                timeout: 10s
-                retries: 3
-                start_period: 60s
-              networks:
-                - conexao-network
-              labels:
-                - "traefik.enable=true"
-                - "traefik.docker.network=conexao-network"
-                - "traefik.http.routers.autenticacao.rule=Host(\`autenticacao.conexaodesorte.com.br\`)"
-                - "traefik.http.routers.autenticacao.entrypoints=websecure"
-                - "traefik.http.routers.autenticacao.tls.certresolver=letsencrypt"
-                - "traefik.http.services.autenticacao.loadbalancer.server.port=8080"
-          
-          secrets:
-            db_password:
-              external: true
-            db_username:
-              external: true
-            redis_password:
-              external: true
-            jwt_signing_key:
-              external: true
-            jwt_verification_key:
-              external: true
-            encryption_master_key:
-              external: true
-          
-          networks:
-            conexao-network:
-              external: true
-          EOF
+          SERVICE_NAME="conexao-autenticacao_autenticacao"
 
-      - name: Aguardar Autenticacao estar pronto
-        run: |
-          echo "⏳ Aguardando Autenticacao ficar pronto..."
-          TIMEOUT=180
-          ELAPSED=0
-          
-          while [ $ELAPSED -lt $TIMEOUT ]; do
-            if docker service ls | grep -q "autenticacao.*1/1"; then
-              echo "✅ Autenticacao está pronto!"
-              break
-            fi
-            echo "⏳ Aguardando readiness... ($ELAPSED/$TIMEOUT segundos)"
-            sleep 10
-            ELAPSED=$((ELAPSED + 10))
-          done
-          
-          if [ $ELAPSED -ge $TIMEOUT ]; then
-            echo "❌ Autenticacao não ficou pronto em $TIMEOUT segundos"
-            echo "📋 Status dos serviços:"
-            docker service ls | grep autenticacao || true
-            echo "📋 Logs do Autenticacao:"
-            docker service logs conexao-autenticacao_autenticacao --tail 50 || true
+          # Garantir que a rede swarm exista
+          if ! docker network ls | awk '{print $2}' | grep -qx "conexao-network-swarm"; then
+            echo "🔗 Criando rede Docker attachable: conexao-network-swarm"
+            docker network create --driver overlay --attachable "conexao-network-swarm"
+          fi
+
+          echo "🔍 Verificando se serviço $SERVICE_NAME já existe..."
+          if docker service ls --format '{{.Name}}' | grep -qx "$SERVICE_NAME"; then
+            echo "🔄 Serviço já existe - executando UPDATE para nova imagem"
+            timeout 60s docker service update \
+              --image "$IMAGE" \
+              --detach=false \
+              --update-parallelism 1 \
+              --update-delay 10s \
+              "$SERVICE_NAME"
+          else
+            echo "🆕 Serviço não existe - executando CREATE"
+            timeout 120s docker service create \
+              --name "$SERVICE_NAME" \
+              --image "$IMAGE" \
+              --network "conexao-network-swarm" \
+              --publish 8091:8080 \
+              --replicas 1 \
+              --secret "db_password" \
+              --secret "db_username" \
+              --secret "redis_password" \
+              --secret "jwt_signing_key" \
+              --secret "jwt_verification_key" \
+              --secret "encryption_master_key" \
+              --env "SPRING_PROFILES_ACTIVE=prod,azure" \
+              --env "TZ=America/Sao_Paulo" \
+              --env "SERVER_PORT=8080" \
+              --env "SPRING_R2DBC_URL=r2dbc:mysql://localhost:3306/db_autenticacao" \
+              --env "SPRING_FLYWAY_URL=jdbc:mysql://localhost:3306/db_autenticacao" \
+              --env "SPRING_DATA_REDIS_HOST=${{ env.REDIS_HOST }}" \
+              --env "SPRING_DATA_REDIS_PORT=${{ env.REDIS_PORT }}" \
+              --env "SPRING_DATA_REDIS_DATABASE=${{ env.REDIS_DATABASE }}" \
+              --env "JWT_ISSUER=${{ env.JWT_ISSUER }}" \
+              --env "JWT_KEY_ID=${{ env.JWT_KEY_ID }}" \
+              --env "JWT_SECRET=${{ env.JWT_SECRET }}" \
+              --env "JWT_ALGORITHM=RS256" \
+              --env "JWT_ACCESS_TOKEN_VALIDITY=86400" \
+              --env "JWT_REFRESH_TOKEN_VALIDITY=604800" \
+              --env "CORS_ALLOWED_ORIGINS=${{ env.CORS_ALLOWED_ORIGINS }}" \
+              --env "CORS_ALLOW_CREDENTIALS=${{ env.CORS_ALLOW_CREDENTIALS }}" \
+              --env "AZURE_CLIENT_ID=${{ secrets.AZURE_CLIENT_ID }}" \
+              --env "AZURE_TENANT_ID=${{ secrets.AZURE_TENANT_ID }}" \
+              --env "AZURE_KEYVAULT_ENDPOINT=${{ secrets.AZURE_KEYVAULT_ENDPOINT }}" \
+              --env "AZURE_KEYVAULT_ENABLED=true" \
+              --env "SSL_KEYSTORE_PASSWORD=${{ env.SSL_KEYSTORE_PASSWORD }}" \
+              --env "FEATURE_AUTH_MICROSERVICE=true" \
+              --env "FEATURE_JWKS_ROTATION=true" \
+              --env "FEATURE_AUDIT_LOGGING=true" \
+              --env "FEATURE_METRICS_COLLECTION=true" \
+              --env "LOG_LEVEL_ROOT=INFO" \
+              --env "LOG_LEVEL_AUTENTICACAO=INFO" \
+              --env "LOG_LEVEL_SECURITY=WARN" \
+              --env "LOG_LEVEL_R2DBC=WARN" \
+              --env "LOG_LEVEL_MYSQL=WARN" \
+              --env "LOG_LEVEL_AZURE=WARN" \
+              --env "TRACING_PROBABILITY=0.1" \
+              --env "RATE_LIMIT_LOGIN=10" \
+              --env "RATE_LIMIT_LOGIN_BURST=20" \
+              --env "RATE_LIMIT_VALIDATION=100" \
+              --env "RATE_LIMIT_VALIDATION_BURST=200" \
+              --restart-condition "any" \
+              --restart-delay "30s" \
+              --restart-max-attempts "2" \
+              --restart-window "120s" \
+              --health-cmd 'curl -f http://localhost:8080/actuator/health' \
+              --health-interval "30s" \
+              --health-timeout "10s" \
+              --health-retries "3" \
+              --health-start-period "60s" \
+              --label "traefik.enable=true" \
+              --label "traefik.docker.network=conexao-network-swarm" \
+              --label "traefik.http.routers.autenticacao.rule=Host(\`autenticacao.conexaodesorte.com.br`)" \
+              --label "traefik.http.routers.autenticacao.entrypoints=websecure" \
+              --label "traefik.http.routers.autenticacao.tls.certresolver=letsencrypt" \
+              --label "traefik.http.services.autenticacao.loadbalancer.server.port=8080" \
+              --detach=false
+          fi
+
+          # Verificar se deploy foi bem-sucedido
+          echo "✅ Verificando saúde do serviço..."
+          sleep 10
+          if docker service ls --filter name="$SERVICE_NAME" --format '{{.Replicas}}' | grep -q "1/1"; then
+            echo "✅ Deploy bem-sucedido!"
+          else
+            echo "❌ Falha no deploy - verificar logs"
+            docker service logs "$SERVICE_NAME" --tail 50
             exit 1
           fi
-
-      - name: Health‑check Autenticacao
-        run: |
-          echo "🔍 Verificando saúde do Autenticacao..."
-          docker service ls | grep autenticacao
-          
-          # Teste do endpoint de health
-          SERVICE_CONTAINER=$(docker ps --filter "name=autenticacao" --format "{{.Names}}" | head -1 || echo "")
-          if [ -n "$SERVICE_CONTAINER" ]; then
-            echo "🌐 Testando health endpoint..."
-            docker exec "$SERVICE_CONTAINER" curl -f http://localhost:8080/actuator/health 2>/dev/null && echo "✅ Autenticacao health OK" || echo "⚠️ Autenticacao health test failed"
-          fi
-          
-          echo "🎉 Autenticacao microservice deployment completed successfully!"
-          echo "🌐 API: https://autenticacao.conexaodesorte.com.br"
 
 # ----------------------------------------------------------------------
 # JOB 5 ▸ NOTIFY
