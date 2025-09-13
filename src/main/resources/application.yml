@@ -1,15 +1,16 @@
 spring:
+  config:
+    import: 
+      - optional:configtree:/run/secrets/
+      - optional:file:./config/
   jackson:
     time-zone: America/Sao_Paulo
     locale: pt_BR
   application:
-    name: autenticacao
+    name: conexao-de-sorte-auth
     
   profiles:
     default: prod
-    include: fallback
-    active: prod
-    # Profiles são sobrescritos via SPRING_PROFILES_ACTIVE no deployment
   
   main:
     allow-bean-definition-overriding: true
@@ -17,9 +18,9 @@ spring:
   # Cache reativo (Redis) - Configuração crítica para autenticação
   data:
     redis:
-      host: ${conexao-de-sorte-redis-host}
+      host: ${conexao-de-sorte-redis-host:conexao-redis}
       port: ${conexao-de-sorte-redis-port}
-      password: ${conexao-de-sorte-redis-password}
+      password: ${conexao-de-sorte-redis-password:senha_teste}
       database: ${conexao-de-sorte-redis-database}
       timeout: 3000ms
       connect-timeout: 10000ms
@@ -46,30 +47,36 @@ spring:
       key-prefix: "auth:"
       use-key-prefix: true
           
-  # Azure Key Vault with manual configuration
+  # Azure Key Vault (configuração base)
   cloud:
     azure:
       keyvault:
         secret:
-          enabled: ${conexao-de-sorte-azure-keyvault-enabled}
-          endpoint: ${conexao-de-sorte-azure-keyvault-endpoint}
-      profile:
-        tenant-id: ${conexao-de-sorte-azure-tenant-id}
-        subscription-id: ${conexao-de-sorte-azure-subscription-id}
-        client-id: ${conexao-de-sorte-azure-client-id}
+          enabled: ${AZURE_KEYVAULT_ENABLED:false}
   
-  # Configtree secret management
-  config:
-    import:
-      - optional:configtree:/etc/secrets/azure/
-      - optional:configtree:/mnt/secrets/
-      - optional:file:./secrets.properties
+  # Flyway para migrations
+  flyway:
+    enabled: true
+    url: ${conexao-de-sorte-database-jdbc-url}
+    user: ${conexao-de-sorte-database-username}
+    password: ${conexao-de-sorte-database-password}
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    validate-on-migrate: true
+    clean-disabled: true
+  
+  # Configurações de segurança
+  security:
+    oauth2:
+      resource-server:
+        jwt:
+          issuer-uri: ${conexao-de-sorte-jwt-issuer}
       
   r2dbc:
     # Configuração segura - apenas Azure Key Vault, sem fallbacks
     url: ${conexao-de-sorte-database-r2dbc-url}
     username: ${conexao-de-sorte-database-username}
-    password: ${conexao-de-sorte-database-password}
+    password: ${conexao-de-sorte-redis-password:senha_teste}
     pool:
       initial-size: 1  # Reduzido para startup mais rápido
       max-size: 10     # Reduzido para startup mais rápido
@@ -84,7 +91,7 @@ spring:
     # Configuração segura - apenas Azure Key Vault, sem fallbacks
     url: ${conexao-de-sorte-database-jdbc-url}
     user: ${conexao-de-sorte-database-username}
-    password: ${conexao-de-sorte-database-password}
+    password: ${conexao-de-sorte-redis-password:senha_teste}
     locations: classpath:db/migration
     baseline-on-migrate: true
     validate-on-migrate: false
@@ -100,7 +107,7 @@ server:
   ssl:
     enabled: false  # TLS termina no Traefik (ACME) - forçar false
     key-store: ${conexao-de-sorte-ssl-keystore-path}
-    key-store-password: ${conexao-de-sorte-ssl-keystore-password}
+    key-store-password: ${conexao-de-sorte-redis-password:senha_teste}
     key-store-type: PKCS12
     
   netty:
@@ -158,8 +165,17 @@ app:
   # JWT Configuration with secure secret management
   jwt:
     # Duracao dos tokens (em segundos)
-    access-token-validity: ${conexao-de-sorte-jwt-access-token-validity}
-    refresh-token-validity: ${conexao-de-sorte-jwt-refresh-token-validity}
+    access-token-validity: ${conexao-de-sorte-jwt-access-token-validity:3600}
+    refresh-token-validity: ${conexao-de-sorte-jwt-refresh-token-validity:86400}
+    cleanup-interval: ${conexao-de-sorte-jwt-cleanup-interval:3600}
+    
+  rate-limiting:
+    login:
+      requests-per-minute: ${conexao-de-sorte-rate-limit-login:10}
+      burst-capacity: ${conexao-de-sorte-rate-limit-login-burst:20}
+    validation:
+      requests-per-minute: ${conexao-de-sorte-rate-limit-validation:100}
+      burst-capacity: ${conexao-de-sorte-rate-limit-validation-burst:200}
     
     # Azure Key Vault keys - using secure naming
     key-vault:
