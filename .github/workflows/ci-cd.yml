@@ -557,16 +557,60 @@ jobs:
               --detach=false
           fi
 
-          # Verificar se deploy foi bem-sucedido
-          echo "✅ Verificando saúde do serviço..."
-          sleep 10
-          if docker service ls --filter name="$SERVICE_NAME" --format '{{.Replicas}}' | grep -q "1/1"; then
-            echo "✅ Deploy bem-sucedido!"
-          else
-            echo "❌ Falha no deploy - verificar logs"
-            docker service logs "$SERVICE_NAME" --tail 50
-            exit 1
-          fi
+          # Verificar se deploy foi bem-sucedido com health check robusto
+          set -euo pipefail
+          INTERNAL_PORT=8080
+          MAX_ATTEMPTS=20
+          INTERVAL=10
+
+          echo "🔍 Verificando saúde do serviço $SERVICE_NAME..."
+
+          # Função para checar o endpoint de saúde
+          check_health() {
+              container_id=$(docker ps -q --filter "label=com.docker.swarm.service.name=${SERVICE_NAME}" | head -n 1)
+              if [[ -n "$container_id" ]]; then
+                  echo "📋 Container ID encontrado: $container_id"
+                  echo "🩺 Testando endpoint de saúde em http://localhost:${INTERNAL_PORT}/actuator/health"
+                  if docker exec "$container_id" sh -c "command -v curl >/dev/null && curl -sf http://localhost:${INTERNAL_PORT}/actuator/health || wget -qO- http://localhost:${INTERNAL_PORT}/actuator/health" | grep -q "UP"; then
+                      return 0 # Success
+                  else
+                      echo "⏳ Health endpoint ainda não está UP..."
+                      return 1 # Failure
+                  fi
+              else
+                  echo "⚠️ Container para o serviço $SERVICE_NAME ainda não encontrado."
+                  return 1 # Failure
+              fi
+          }
+
+          # Loop de verificação
+          for i in $(seq 1 $MAX_ATTEMPTS); do
+              echo "⏳ Verificação de saúde $i/$MAX_ATTEMPTS..."
+              
+              replicas=$(docker service ls --filter name="$SERVICE_NAME" --format '{{.Replicas}}')
+              if [[ "$replicas" == "1/1" ]]; then
+                  echo "✅ Serviço $SERVICE_NAME tem 1/1 réplicas em execução."
+                  if check_health; then
+                      echo "✅ Serviço está saudável e respondendo!"
+                      echo "🎉 Deploy validado com sucesso!"
+                      exit 0
+                  fi
+              elif [[ "$replicas" == "0/1" ]]; then
+                   echo "❌ Serviço $SERVICE_NAME está com 0/1 réplicas. Verificando logs..."
+                   docker service logs "$SERVICE_NAME" --tail 50
+                   exit 1
+              else
+                  echo "⏳ Serviço $SERVICE_NAME ainda não está com 1/1 réplicas. Status: $replicas"
+              fi
+              
+              sleep $INTERVAL
+          done
+
+          echo "❌ O serviço $SERVICE_NAME não ficou saudável dentro do tempo limite."
+          docker service ps "$SERVICE_NAME" --no-trunc
+          echo "📋 Logs finais:"
+          docker service logs "$SERVICE_NAME" --tail 100
+          exit 1
 
 # ----------------------------------------------------------------------
 # JOB 5 ▸ NOTIFY
