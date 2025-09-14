@@ -574,7 +574,7 @@ jobs:
               --health-start-period "60s" \
               --label "traefik.enable=true" \
               --label "traefik.docker.network=conexao-network-swarm" \
-              --label "traefik.http.routers.autenticacao.rule=Host(\`autenticacao.conexaodesorte.com.br`)" \
+              --label "traefik.http.routers.autenticacao.rule=Host(\`autenticacao.conexaodesorte.com.br\`)" \
               --label "traefik.http.routers.autenticacao.entrypoints=websecure" \
               --label "traefik.http.routers.autenticacao.tls.certresolver=letsencrypt" \
               --label "traefik.http.services.autenticacao.loadbalancer.server.port=8080" \
