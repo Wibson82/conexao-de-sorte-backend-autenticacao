@@ -149,7 +149,7 @@ jobs:
         shell: bash
         run: |
           echo "🔐 Validando secrets OIDC antes do login..."
-          
+
           # Validar presença de todos os secrets obrigatórios
           MISSING_SECRETS=""
           if [ -z "${{ secrets.AZURE_CLIENT_ID }}" ]; then
@@ -164,13 +164,13 @@ jobs:
           if [ -z "${{ secrets.AZURE_KEYVAULT_ENDPOINT }}" ]; then
             MISSING_SECRETS="$MISSING_SECRETS AZURE_KEYVAULT_ENDPOINT"
           fi
-          
+
           if [ -n "$MISSING_SECRETS" ]; then
             echo "❌ Secrets obrigatórios não configurados no GitHub:$MISSING_SECRETS"
             echo "📝 Configure em: Settings → Secrets and variables → Actions → Repository secrets"
             exit 1
           fi
-          
+
           echo "✅ Todos os secrets OIDC estão configurados"
 
       # ─── OIDC login no Azure para acessar Key Vault ───────────────────
@@ -188,7 +188,7 @@ jobs:
         shell: bash
         run: |
           echo "🔍 Verificando conectividade Azure..."
-          
+
           # Verificar se conseguimos acessar a subscription
           if ACCOUNT_INFO=$(az account show --query "{name: name, id: id, tenantId: tenantId}" -o json 2>/dev/null); then
             echo "✅ Login Azure confirmado:"
@@ -213,7 +213,7 @@ jobs:
             echo "ERROR: Invalid AZURE_KEYVAULT_ENDPOINT format: $VAULT_ENDPOINT" >&2
             exit 1
           fi
-          
+
           echo "Loading secret from Azure Key Vault: $VAULT" >&2
           DB_PASS=$(az keyvault secret show --vault-name "$VAULT" --name conexao-de-sorte-database-password --query value -o tsv 2>/dev/null)
           if [ $? -ne 0 ] || [ -z "$DB_PASS" ]; then
@@ -239,9 +239,11 @@ jobs:
         run: |
           REPO_LOWER=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
           TIMESTAMP=$(date +'%d-%m-%Y-%H-%M')
-          IMAGE=ghcr.io/$REPO_LOWER/conexao-de-sorte-backend-autenticacao:${TIMESTAMP}
+          IMAGE=ghcr.io/$REPO_LOWER:${TIMESTAMP}
+          IMAGE_LATEST=ghcr.io/$REPO_LOWER:latest
           docker buildx build \
             --tag "$IMAGE" \
+            --tag "$IMAGE_LATEST" \
             --push \
             --provenance=true \
             --sbom=true \
@@ -298,13 +300,13 @@ jobs:
         shell: bash
         run: |
           echo "🔐 Validando ambiente de produção..."
-          
+
           # Verificar que estamos na branch main
           if [ "${{ github.ref }}" != "refs/heads/main" ]; then
             echo "❌ Deploy só é permitido na branch main"
             exit 1
           fi
-          
+
           # Verificar secrets obrigatórios
           MISSING_SECRETS=""
           if [ -z "${{ secrets.AZURE_CLIENT_ID }}" ]; then
@@ -319,12 +321,12 @@ jobs:
           if [ -z "${{ secrets.AZURE_KEYVAULT_ENDPOINT }}" ]; then
             MISSING_SECRETS="$MISSING_SECRETS AZURE_KEYVAULT_ENDPOINT"
           fi
-          
+
           if [ -n "$MISSING_SECRETS" ]; then
             echo "❌ Secrets obrigatórios para produção não configurados:$MISSING_SECRETS"
             exit 1
           fi
-          
+
           echo "✅ Ambiente de produção validado"
 
       # ─── OIDC login no Azure para acessar Key Vault ───────────────────
@@ -342,19 +344,19 @@ jobs:
         shell: bash
         run: |
           echo "🔍 Verificando conectividade Azure para produção..."
-          
+
           # Verificar subscription e tenant corretos
           if ACCOUNT_INFO=$(az account show --query "{name: name, id: id, tenantId: tenantId}" -o json 2>/dev/null); then
             echo "✅ Login Azure confirmado para produção:"
             echo "$ACCOUNT_INFO" | jq -r '"  Subscription: \(.name)"'
             echo "$ACCOUNT_INFO" | jq -r '"  Tenant ID: \(.tenantId)"'
-            
+
             # Verificar se podemos acessar o Key Vault
             VAULT_ENDPOINT="${{ secrets.AZURE_KEYVAULT_ENDPOINT }}"
             if [[ "$VAULT_ENDPOINT" =~ https://([^.]+)\.vault\.azure\.net ]]; then
               VAULT_NAME="${BASH_REMATCH[1]}"
               echo "🔑 Testando acesso ao Key Vault: $VAULT_NAME"
-              
+
               if az keyvault show --name "$VAULT_NAME" --query "name" -o tsv >/dev/null 2>&1; then
                 echo "✅ Acesso ao Key Vault confirmado"
               else
@@ -382,15 +384,15 @@ jobs:
             echo "ERROR: Invalid AZURE_KEYVAULT_ENDPOINT format: $VAULT_ENDPOINT" >&2
             exit 1
           fi
-          
+
           echo "🔐 Loading all secrets from Azure Key Vault: $VAULT" >&2
-          
+
           # Função para obter secret com fallback gracioso
           get_secret() {
             local secret_name="$1"
             local fallback_value="$2"
             local secret_value
-            
+
             secret_value=$(az keyvault secret show --vault-name "$VAULT" --name "$secret_name" --query value -o tsv 2>/dev/null || echo "")
             if [ -z "$secret_value" ]; then
               if [ -n "$fallback_value" ]; then
@@ -405,45 +407,45 @@ jobs:
               echo "$secret_value"
             fi
           }
-          
+
           # Carregar segredos essenciais (sem fallback - devem falhar se não existirem)
           DB_PASSWORD=$(get_secret "conexao-de-sorte-database-password" "")
           DB_USERNAME=$(get_secret "conexao-de-sorte-database-username" "")
-          
+
           # Carregar segredos com fallbacks seguros
           REDIS_HOST=$(get_secret "conexao-de-sorte-redis-host" "localhost")
           REDIS_PORT=$(get_secret "conexao-de-sorte-redis-port" "6379")
           REDIS_PASSWORD=$(get_secret "conexao-de-sorte-redis-password" "")
           REDIS_DATABASE=$(get_secret "conexao-de-sorte-redis-database" "1")
-          
+
           JWT_SIGNING_KEY=$(get_secret "conexao-de-sorte-jwt-signing-key" "")
           JWT_VERIFICATION_KEY=$(get_secret "conexao-de-sorte-jwt-verification-key" "")
           JWT_KEY_ID=$(get_secret "conexao-de-sorte-jwt-key-id" "")
           JWT_SECRET=$(get_secret "conexao-de-sorte-jwt-secret" "")
           JWT_ISSUER=$(get_secret "conexao-de-sorte-jwt-issuer" "https://conexaodesorte.com.br")
-          
+
           ENCRYPTION_MASTER_KEY=$(get_secret "conexao-de-sorte-encryption-master-key" "")
           ENCRYPTION_BACKUP_KEY=$(get_secret "conexao-de-sorte-encryption-backup-key" "")
-          
+
           CORS_ALLOWED_ORIGINS=$(get_secret "conexao-de-sorte-cors-allowed-origins" "https://conexaodesorte.com.br")
           CORS_ALLOW_CREDENTIALS=$(get_secret "conexao-de-sorte-cors-allow-credentials" "false")
-          
+
           SSL_KEYSTORE_PASSWORD=$(get_secret "conexao-de-sorte-ssl-keystore-password" "")
-          
+
           # Criar/atualizar Docker secrets (remover secrets existentes antes de recriar)
           echo "🔄 Managing Docker secrets..." >&2
-          
+
           # Função para criar/recriar secret
           create_or_update_secret() {
             local secret_name="$1"
             local secret_value="$2"
-            
+
             if [ -n "$secret_value" ] && [ "$secret_value" != "" ]; then
               echo "🔄 Processing secret: $secret_name" >&2
-              
+
               # Remover secret existente se existir (ignorar erros)
               docker secret rm "$secret_name" >/dev/null 2>&1 || true
-              
+
               # Criar novo secret com tratamento de erro robusto
               if printf "%s" "$secret_value" | docker secret create "$secret_name" - >/dev/null 2>&1; then
                 echo "✅ Secret $secret_name created successfully" >&2
@@ -455,7 +457,7 @@ jobs:
               echo "⚠️ Skipping empty secret $secret_name" >&2
             fi
           }
-          
+
           # Criar todos os secrets
           create_or_update_secret "db_password" "$DB_PASSWORD"
           create_or_update_secret "db_username" "$DB_USERNAME"
@@ -463,7 +465,7 @@ jobs:
           create_or_update_secret "jwt_signing_key" "$JWT_SIGNING_KEY"
           create_or_update_secret "jwt_verification_key" "$JWT_VERIFICATION_KEY"
           create_or_update_secret "encryption_master_key" "$ENCRYPTION_MASTER_KEY"
-          
+
           # Verificar se secrets essenciais foram criados
           echo "🔍 Verifying essential secrets..." >&2
           ESSENTIAL_SECRETS=("db_password" "db_username")
@@ -477,9 +479,9 @@ jobs:
               exit 1
             fi
           done
-          
+
           echo "✅ All essential Docker secrets verified successfully" >&2
-          
+
           # Salvar variáveis de ambiente para o próximo step
           echo "REDIS_HOST=$REDIS_HOST" >> $GITHUB_ENV
           echo "REDIS_PORT=$REDIS_PORT" >> $GITHUB_ENV
@@ -609,7 +611,7 @@ jobs:
           # Loop de verificação
           for i in $(seq 1 $MAX_ATTEMPTS); do
               echo "⏳ Verificação de saúde $i/$MAX_ATTEMPTS..."
-              
+
               replicas=$(docker service ls --filter name="$SERVICE_NAME" --format '{{.Replicas}}')
               if [[ "$replicas" == "1/1" ]]; then
                   echo "✅ Serviço $SERVICE_NAME tem 1/1 réplicas em execução."
@@ -625,7 +627,7 @@ jobs:
               else
                   echo "⏳ Serviço $SERVICE_NAME ainda não está com 1/1 réplicas. Status: $replicas"
               fi
-              
+
               sleep $INTERVAL
           done
 
