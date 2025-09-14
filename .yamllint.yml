@@ -1,0 +1,19 @@
+---
+extends: default
+
+rules:
+  # 80 chars should be enough, but don't fail if a line is longer
+  line-length:
+    max: 120
+    level: warning
+
+  # accept both {{var}} and { {var}}
+  braces:
+    min-spaces-inside: 0
+    max-spaces-inside: 1
+
+  # don't require document start markers
+  document-start: disable
+
+  # allow comments to be indented like content
+  comments-indentation: disable
