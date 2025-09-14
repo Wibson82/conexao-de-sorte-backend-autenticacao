@@ -5,8 +5,6 @@
 # Conecta ao MySQL existente no servidor
 # ============================================================================
 
-version: '3.8'
-
 services:
   autenticacao:
     image: ghcr.io/wibson82/conexao-de-sorte-backend-autenticacao:${IMAGE_TAG:-latest}
