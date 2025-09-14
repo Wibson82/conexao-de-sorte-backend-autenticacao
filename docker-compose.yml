@@ -89,14 +89,6 @@ services:
           memory: 1G
           cpus: '0.5'
 
-    labels:
-      - "traefik.enable=true"
-      - "traefik.docker.network=conexao-network"
-      - "traefik.http.routers.autenticacao.rule=Host(`auth.conexaodesorte.com.br`)"
-      - "traefik.http.routers.autenticacao.entrypoints=websecure"
-      - "traefik.http.routers.autenticacao.tls.certresolver=letsencrypt"
-      - "traefik.http.services.autenticacao.loadbalancer.server.port=8080"
-
 networks:
   conexao-network:
     external: true
