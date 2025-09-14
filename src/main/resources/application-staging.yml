@@ -79,11 +79,12 @@ management:
       enabled: true
     db:
       enabled: true
-  metrics:
-    export:
-      prometheus:
+  prometheus:
+    metrics:
+      export:
         enabled: true
         step: 30s
+  metrics:
     distribution:
       percentiles-histogram:
         http.server.requests: true
@@ -136,7 +137,6 @@ resilience4j:
   circuitbreaker:
     instances:
       user-service:
-        enabled: true
         failure-rate-threshold: 30  # Mais permissivo em staging
         wait-duration-in-open-state: 30s
         sliding-window-size: 10
@@ -145,7 +145,6 @@ resilience4j:
   ratelimiter:
     instances:
       auth-api:
-        enabled: true
         limit-for-period: 2000  # Mais permissivo para testes de auth
         limit-refresh-period: 1m
         timeout-duration: 500ms
