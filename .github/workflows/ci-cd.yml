@@ -516,7 +516,6 @@ jobs:
             echo "🆕 Serviço não existe - executando CREATE"
             timeout 120s docker service create \
               --name "$SERVICE_NAME" \
-              --image "$IMAGE" \
               --network "conexao-network-swarm" \
               --publish 8091:8080 \
               --replicas 1 \
@@ -577,7 +576,8 @@ jobs:
               --label "traefik.http.routers.autenticacao.entrypoints=websecure" \
               --label "traefik.http.routers.autenticacao.tls.certresolver=letsencrypt" \
               --label "traefik.http.services.autenticacao.loadbalancer.server.port=8080" \
-              --detach=false
+              --detach=false \
+              "$IMAGE"
           fi
 
           # Verificar se deploy foi bem-sucedido com health check robusto

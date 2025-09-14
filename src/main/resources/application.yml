@@ -76,7 +76,7 @@ spring:
     # Configuração segura - apenas Azure Key Vault, sem fallbacks
     url: ${conexao-de-sorte-database-r2dbc-url}
     username: ${conexao-de-sorte-database-username}
-    password: ${conexao-de-sorte-redis-password:senha_teste}
+    password: ${conexao-de-sorte-database-password:senha_teste}
     pool:
       initial-size: 1  # Reduzido para startup mais rápido
       max-size: 10     # Reduzido para startup mais rápido
@@ -91,7 +91,7 @@ spring:
     # Configuração segura - apenas Azure Key Vault, sem fallbacks
     url: ${conexao-de-sorte-database-jdbc-url}
     user: ${conexao-de-sorte-database-username}
-    password: ${conexao-de-sorte-redis-password:senha_teste}
+    password: ${conexao-de-sorte-database-password:senha_teste}
     locations: classpath:db/migration
     baseline-on-migrate: true
     validate-on-migrate: false
