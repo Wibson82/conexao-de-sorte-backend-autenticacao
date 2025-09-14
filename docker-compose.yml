@@ -1,0 +1,130 @@
+version: '3.8'
+
+services:
+  autenticacao:
+    image: ghcr.io/wibson82/conexao-de-sorte-backend-autenticacao/autenticacao:${IMAGE_TAG:-latest}
+    container_name: conexao-autenticacao
+    ports:
+      - "8091:8080"
+    environment:
+      - SPRING_PROFILES_ACTIVE=${ENVIRONMENT:-prod,azure}
+      - TZ=America/Sao_Paulo
+      - SERVER_PORT=8080
+      
+      # Database Configuration
+      - SPRING_R2DBC_URL=${DATABASE_R2DBC_URL:-r2dbc:mysql://conexao-mysql:3306/db_autenticacao}
+      - SPRING_R2DBC_USERNAME=${DATABASE_USERNAME:-autenticacao_user}
+      - SPRING_R2DBC_PASSWORD=${DATABASE_PASSWORD}
+      - SPRING_FLYWAY_URL=${DATABASE_JDBC_URL:-jdbc:mysql://conexao-mysql:3306/db_autenticacao}
+      - SPRING_FLYWAY_USER=${DATABASE_USERNAME:-autenticacao_user}
+      - SPRING_FLYWAY_PASSWORD=${DATABASE_PASSWORD}
+      
+      # Redis Configuration
+      - SPRING_DATA_REDIS_HOST=${REDIS_HOST:-conexao-redis}
+      - SPRING_DATA_REDIS_PORT=${REDIS_PORT:-6379}
+      - SPRING_DATA_REDIS_PASSWORD=${REDIS_PASSWORD}
+      - SPRING_DATA_REDIS_DATABASE=${REDIS_DATABASE:-1}
+      
+      # JWT Configuration
+      - JWT_ISSUER=${JWT_ISSUER:-https://auth.conexaodesorte.com.br}
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_KEY_ID=${JWT_KEY_ID:-auth-key}
+      - JWT_ALGORITHM=${JWT_ALGORITHM:-RS256}
+      - JWT_ACCESS_TOKEN_VALIDITY=${JWT_ACCESS_TOKEN_VALIDITY:-86400}
+      - JWT_REFRESH_TOKEN_VALIDITY=${JWT_REFRESH_TOKEN_VALIDITY:-604800}
+      
+      # CORS Configuration
+      - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS:-https://conexaodesorte.com.br,https://www.conexaodesorte.com.br}
+      - CORS_ALLOW_CREDENTIALS=${CORS_ALLOW_CREDENTIALS:-true}
+      
+      # Azure Key Vault
+      - AZURE_CLIENT_ID=${AZURE_CLIENT_ID}
+      - AZURE_TENANT_ID=${AZURE_TENANT_ID}
+      - AZURE_KEYVAULT_ENDPOINT=${AZURE_KEYVAULT_ENDPOINT}
+      - AZURE_KEYVAULT_ENABLED=${AZURE_KEYVAULT_ENABLED:-true}
+      
+      # SSL Configuration
+      - SSL_ENABLED=${SSL_ENABLED:-false}
+      - SSL_KEYSTORE_PASSWORD=${SSL_KEYSTORE_PASSWORD}
+      
+      # Feature Flags
+      - FEATURE_AUTH_MICROSERVICE=${FEATURE_AUTH_MICROSERVICE:-true}
+      - FEATURE_JWKS_ROTATION=${FEATURE_JWKS_ROTATION:-true}
+      - FEATURE_AUDIT_LOGGING=${FEATURE_AUDIT_LOGGING:-true}
+      - FEATURE_METRICS_COLLECTION=${FEATURE_METRICS_COLLECTION:-true}
+      
+      # Rate Limiting
+      - RATE_LIMIT_LOGIN=${RATE_LIMIT_LOGIN:-10}
+      - RATE_LIMIT_LOGIN_BURST=${RATE_LIMIT_LOGIN_BURST:-20}
+      - RATE_LIMIT_VALIDATION=${RATE_LIMIT_VALIDATION:-100}
+      - RATE_LIMIT_VALIDATION_BURST=${RATE_LIMIT_VALIDATION_BURST:-200}
+      
+      # Logging
+      - LOG_LEVEL_ROOT=${LOG_LEVEL_ROOT:-INFO}
+      - LOG_LEVEL_AUTENTICACAO=${LOG_LEVEL_AUTENTICACAO:-INFO}
+      - LOG_LEVEL_SECURITY=${LOG_LEVEL_SECURITY:-WARN}
+      - LOG_LEVEL_R2DBC=${LOG_LEVEL_R2DBC:-WARN}
+      - LOG_LEVEL_MYSQL=${LOG_LEVEL_MYSQL:-WARN}
+      - LOG_LEVEL_AZURE=${LOG_LEVEL_AZURE:-WARN}
+      
+      # Tracing
+      - TRACING_PROBABILITY=${TRACING_PROBABILITY:-0.1}
+      
+    secrets:
+      - db_password
+      - db_username
+      - redis_password
+      - jwt_signing_key
+      - jwt_verification_key
+      - encryption_master_key
+      
+    networks:
+      - conexao-network
+      
+    restart: unless-stopped
+    
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+      
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1.0'
+        reservations:
+          memory: 1G
+          cpus: '0.5'
+    
+    depends_on:
+      - conexao-mysql
+      - conexao-redis
+    
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=conexao-network"
+      - "traefik.http.routers.autenticacao.rule=Host(`auth.conexaodesorte.com.br`)"
+      - "traefik.http.routers.autenticacao.entrypoints=websecure"
+      - "traefik.http.routers.autenticacao.tls.certresolver=letsencrypt"
+      - "traefik.http.services.autenticacao.loadbalancer.server.port=8080"
+
+secrets:
+  db_password:
+    external: true
+  db_username:
+    external: true
+  redis_password:
+    external: true
+  jwt_signing_key:
+    external: true
+  jwt_verification_key:
+    external: true
+  encryption_master_key:
+    external: true
+
+networks:
+  conexao-network:
+    external: true
