@@ -20,7 +20,7 @@ server:
 spring:
   application:
     name: autenticacao-staging
-    
+
   r2dbc:
     url: ${STAGING_DATABASE_R2DBC_URL:r2dbc:mysql://localhost:3307/conexao_sorte_auth}
     username: ${STAGING_DATABASE_USERNAME:conexao_sorte}
@@ -30,7 +30,7 @@ spring:
       initial-size: 5
       max-size: 20
       max-idle-time: 30m
-      
+
   # ========================================
   # 🗄️ FLYWAY PARA MIGRATIONS
   # ========================================
@@ -41,7 +41,7 @@ spring:
     password: ${STAGING_DATABASE_PASSWORD}
     locations: classpath:db/migration
     baseline-on-migrate: true
-    
+
   # ========================================
   # 🚀 REDIS
   # ========================================
@@ -108,7 +108,9 @@ logging:
     org.springframework.web.reactive: DEBUG
     org.springframework.security.oauth2: DEBUG
   pattern:
-    console: "%clr(%d{yyyy-MM-dd HH:mm:ss.SSS}){faint} %clr(%5p) %clr(${PID:- }){magenta} %clr(---){faint} %clr([%15.15t]){faint} %clr(%-40.40logger{39}){cyan} %clr(:){faint} [STAGING] %m%n%wEx"
+    console: >-
+      %clr(%d{yyyy-MM-dd HH:mm:ss.SSS}){faint} %clr(%5p) %clr(${PID:- }){magenta} %clr(---){faint}
+      %clr([%15.15t]){faint} %clr(%-40.40logger{39}){cyan} %clr(:){faint} [STAGING] %m%n%wEx
     file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{50} - [STAGING] %msg%n"
   file:
     name: /tmp/autenticacao-staging.log
@@ -119,7 +121,7 @@ logging:
 # 🌐 CORS PERMISSIVO PARA STAGING
 # ========================================
 cors:
-  allowed-origins: 
+  allowed-origins:
     - "http://localhost:3000"
     - "https://staging.conexaodesorte.com"
   allowed-methods: "*"
@@ -139,7 +141,7 @@ resilience4j:
         wait-duration-in-open-state: 30s
         sliding-window-size: 10
         minimum-number-of-calls: 5
-  
+
   ratelimiter:
     instances:
       auth-api:
@@ -157,23 +159,23 @@ auth:
     expiration: 3600  # 1 hora
     refresh-expiration: 86400  # 24 horas
     issuer: https://staging.conexaodesorte.com
-    
+
   features:
     multi-factor: false  # Desabilitado em staging para facilitar testes
     social-login: true
     password-recovery: true
     email-verification: false  # Desabilitado em staging
     audit-logs: true
-    
+
   cache:
     token-blacklist-ttl: 3600s
     user-session-ttl: 1800s
-    
+
   api:
     rate-limit:
       enabled: true
       login-attempts: 100  # Mais permissivo em staging
-      
+
   validation:
     strong-passwords: false  # Relaxado para staging
     account-lockout-enabled: false
@@ -188,19 +190,19 @@ services:
   audit:
     url: http://audit-service:8085
     timeout: 5s
-    
+
 # ========================================
 # 🧪 DEBUG & DESENVOLVIMENTO
 # ========================================
 debug: true
 
-spring:
-  jpa:
-    show-sql: false  # Mantém false para não poluir logs
-    properties:
-      hibernate:
-        format_sql: true
-        
+# JPA Configuration
+jpa:
+  show-sql: false  # Mantém false para não poluir logs
+  properties:
+    hibernate:
+      format_sql: true
+
 springdoc:
   api-docs:
     enabled: true

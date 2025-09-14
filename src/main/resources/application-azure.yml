@@ -42,9 +42,9 @@ user-service:
 app:
   microservice:
     name: autenticacao
-    version: @project.version@
+    version: "@project.version@"
     description: "Microserviço de autenticação e autorização"
-  
+
   # JWT Configuration - GERAÇÃO E VALIDAÇÃO COMPLETA
   jwt:
     # Chaves para geração e assinatura de tokens (via Azure Key Vault)
@@ -52,21 +52,21 @@ app:
     verification-key: ${conexao-de-sorte-jwt-verification-key:}
     key-id: ${conexao-de-sorte-jwt-key-id:}
     secret: ${conexao-de-sorte-jwt-secret:}
-    
+
     # Configurações de token
     issuer: https://conexaodesorte.com.br
     audience: conexao-de-sorte-frontend-app
     algorithm: RS256
     expiration: 86400  # 24 horas
     refresh-expiration: 604800  # 7 dias
-    
+
     # Configurações de segurança
     validation:
       enabled: true
       strict-mode: true
       require-expiration: true
       clock-skew: PT30S
-    
+
     # Configurações de rotação (apenas para microserviço auth)
     rotation:
       enabled: true
@@ -88,7 +88,7 @@ app:
     # client-secret: (não utilizar)
     redirect-uri: https://conexaodesorte.com.br/oauth2/callback
     scopes: openid,profile,email
-    
+
   # Security Configuration
   security:
     session:

@@ -7,12 +7,12 @@ spring:
     url: ${SPRING_R2DBC_URL:r2dbc:mysql://localhost:3306/db_autenticacao}
     username: ${SPRING_R2DBC_USERNAME:autenticacao_user}
     password: ${SPRING_R2DBC_PASSWORD:changeme}
-  
+
   flyway:
     url: ${SPRING_FLYWAY_URL:jdbc:mysql://localhost:3306/db_autenticacao}
     user: ${SPRING_FLYWAY_USER:autenticacao_user}
     password: ${SPRING_FLYWAY_PASSWORD:changeme}
-  
+
   # Redis Configuration - Fallbacks seguros
   data:
     redis:
@@ -20,7 +20,7 @@ spring:
       port: ${SPRING_DATA_REDIS_PORT:6379}
       password: ${SPRING_DATA_REDIS_PASSWORD:}
       database: ${SPRING_DATA_REDIS_DATABASE:1}
-  
+
   # Azure Configuration - Fallbacks seguros
   cloud:
     azure:
@@ -47,17 +47,17 @@ jwt:
   issuer: ${JWT_ISSUER:https://conexaodesorte.com.br}
   audience: ${JWT_AUDIENCE:conexao-de-sorte-frontend-app}
   algorithm: ${JWT_ALGORITHM:RS256}
-  
+
   # Validade dos tokens
   access-token-validity: ${JWT_ACCESS_TOKEN_VALIDITY:86400}
   refresh-token-validity: ${JWT_REFRESH_TOKEN_VALIDITY:604800}
-  
+
   # Chaves (via secrets ou fallback vazio)
   signing-key: ${JWT_SIGNING_KEY:}
   verification-key: ${JWT_VERIFICATION_KEY:}
   key-id: ${JWT_KEY_ID:}
   secret: ${JWT_SECRET:}
-  
+
   # Azure Key Vault keys
   key-vault:
     enabled: ${JWT_KEYVAULT_ENABLED:false}
@@ -65,10 +65,10 @@ jwt:
     public-key-name: ${JWT_PUBLIC_KEY_NAME:jwt-public-key}
     key-id-name: ${JWT_KEY_ID_NAME:jwt-key-id}
     secret-name: ${JWT_SECRET_NAME:jwt-secret}
-  
+
   # JWKS cache
   jwks-cache-duration: ${JWT_JWKS_CACHE_DURATION:PT1H}
-  
+
   # Rotação
   rotation:
     enabled: ${JWT_ROTATION_ENABLED:false}
@@ -118,7 +118,7 @@ logging:
     "[org.springframework.r2dbc]": ${LOG_LEVEL_R2DBC:WARN}
     "[io.r2dbc.mysql]": ${LOG_LEVEL_MYSQL:WARN}
     "[com.azure]": ${LOG_LEVEL_AZURE:WARN}
-  
+
   file:
     name: ${LOG_FILE:/var/log/autenticacao/application.log}
 
