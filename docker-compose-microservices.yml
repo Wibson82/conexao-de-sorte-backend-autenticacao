@@ -45,7 +45,7 @@ services:
 
   # Auth Microservice
   auth-microservice:
-    build: ./conexao-de-sorte-backend-autenticacao
+    image: ghcr.io/wibson82/conexao-de-sorte-backend-autenticacao:${IMAGE_TAG:-latest}
     container_name: auth-microservice
     hostname: auth-microservice
     restart: unless-stopped

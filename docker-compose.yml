@@ -9,7 +9,7 @@ version: '3.8'
 
 services:
   autenticacao:
-    image: ghcr.io/wibson82/conexao-de-sorte-backend-autenticacao/autenticacao:${IMAGE_TAG:-latest}
+    image: ghcr.io/wibson82/conexao-de-sorte-backend-autenticacao:${IMAGE_TAG:-latest}
     container_name: conexao-autenticacao
     ports:
       - "8091:8080"
