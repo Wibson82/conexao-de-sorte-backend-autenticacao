@@ -1,0 +1,661 @@
+name: "🚀 Autenticacao – CI/CD Pipeline"
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Destino do deploy"
+        required: false
+        default: "production"
+        type: choice
+        options: [ staging, production ]
+
+# ----------------------------------------------------------------------
+# PARÂMETROS GERAIS
+# ----------------------------------------------------------------------
+
+env:
+  SERVICE_NAME: autenticacao
+  TZ: America/Sao_Paulo
+
+# Observação: IDs públicos (CLIENT_ID, TENANT_ID, SUBSCRIPTION_ID) devem
+# ser cadastrados como **Repository Variables** (Settings ▸ Variables).
+# Eles são lidos via `vars.<NAME>` — não via `secrets`.
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name == 'workflow_dispatch' && inputs.environment || 'production' }}
+  cancel-in-progress: false
+
+# ----------------------------------------------------------------------
+# JOB 1 ▸ VALIDAÇÃO DO WORKSPACE
+# ----------------------------------------------------------------------
+
+jobs:
+  validate-environment:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: "Guard: validar configurações obrigatórias do Microserviço"
+        shell: bash
+        run: |
+          chmod +x .github/workflows/scripts/validate-required-files.sh
+          ./.github/workflows/scripts/validate-required-files.sh microservice
+
+      - name: "Guard: proibir r2dbc:h2 fora de testes"
+        shell: bash
+        run: |
+          set -euo pipefail
+          FOUND=$(grep -R --line-number --include='*.yml' --include='*.yaml' --include='*.properties' "r2dbc:h2" src || true)
+          if echo "$FOUND" | grep -v "src/test/" | grep -q "r2dbc:h2"; then
+            echo "❌ r2dbc:h2 encontrado fora de src/test" >&2
+            echo "$FOUND" >&2
+            exit 1
+          fi
+
+      - name: "Guard: dependência H2 não‑test"
+        shell: bash
+        run: |
+          ./mvnw -q dependency:list -DincludeScope=compile -DoutputFile=deps.txt
+          if grep -E "com.h2database:h2|io.r2dbc:r2dbc-h2" deps.txt; then
+            echo "❌ H2 presente em scope de produção" >&2
+            exit 1
+          fi
+
+# ----------------------------------------------------------------------
+# JOB 2 ▸ BUILD + TEST + SAST/SCA
+# ----------------------------------------------------------------------
+
+  build-test-scan:
+    needs: validate-environment
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Java 24 (Temurin)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "24"
+          cache: maven
+
+      - name: Build + Test + Package
+        run: ./mvnw package
+
+      # - name: Build + Test + Cobertura (JaCoCo)
+      #   run: ./mvnw verify -Pcoverage
+
+      # - name: Upload cobertura
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: cobertura-jacoco
+      #     path: target/site/jacoco
+      #     retention-days: 7
+
+      # - name: CodeQL init
+      #   uses: github/codeql-action/init@v3
+      #   with:
+      #     languages: java
+
+      # - name: CodeQL analyze
+      #   uses: github/codeql-action/analyze@v3
+
+      # - name: Trivy SCA (pom.xml)
+      #   uses: aquasecurity/trivy-action@0.19.0
+      #   with:
+      #     scan-type: fs
+      #     ignore-unfixed: true
+      #     format: table
+      #     severity: HIGH,CRITICAL
+
+      - name: Upload JAR artefact
+        uses: actions/upload-artifact@v4
+        with:
+          name: autenticacao-jar
+          path: target/*.jar
+          retention-days: 1
+
+# ----------------------------------------------------------------------
+# JOB 3 ▸ BUILD DA IMAGEM + PUSH GHCR
+# ----------------------------------------------------------------------
+
+  build-image:
+    needs: [ build-test-scan, security-analysis ]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    outputs:
+      image: ${{ steps.build.outputs.image }}
+    permissions:
+      packages: write
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download JAR artefact
+        uses: actions/download-artifact@v4
+        with:
+          name: autenticacao-jar
+          path: target
+
+      # ─── Validação rigorosa de secrets OIDC ──────────────────────────
+      - name: 🔐 Validar secrets Azure OIDC obrigatórios
+        shell: bash
+        run: |
+          echo "🔐 Validando secrets OIDC antes do login..."
+
+          # Validar presença de todos os secrets obrigatórios
+          MISSING_SECRETS=""
+          if [ -z "${{ secrets.AZURE_CLIENT_ID }}" ]; then
+            MISSING_SECRETS="$MISSING_SECRETS AZURE_CLIENT_ID"
+          fi
+          if [ -z "${{ secrets.AZURE_TENANT_ID }}" ]; then
+            MISSING_SECRETS="$MISSING_SECRETS AZURE_TENANT_ID"
+          fi
+          if [ -z "${{ secrets.AZURE_SUBSCRIPTION_ID }}" ]; then
+            MISSING_SECRETS="$MISSING_SECRETS AZURE_SUBSCRIPTION_ID"
+          fi
+          if [ -z "${{ secrets.AZURE_KEYVAULT_ENDPOINT }}" ]; then
+            MISSING_SECRETS="$MISSING_SECRETS AZURE_KEYVAULT_ENDPOINT"
+          fi
+
+          if [ -n "$MISSING_SECRETS" ]; then
+            echo "❌ Secrets obrigatórios não configurados no GitHub:$MISSING_SECRETS"
+            echo "📝 Configure em: Settings → Secrets and variables → Actions → Repository secrets"
+            exit 1
+          fi
+
+          echo "✅ Todos os secrets OIDC estão configurados"
+
+      # ─── OIDC login no Azure para acessar Key Vault ───────────────────
+      - name: 🔑 Azure Login (OIDC)
+        uses: azure/login@v2
+        timeout-minutes: 5
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          enable-AzPSSession: false
+
+      # ─── Verificação pós-login ────────────────────────────────────────
+      - name: 🔍 Verificar conectividade Azure pós-login
+        shell: bash
+        run: |
+          echo "🔍 Verificando conectividade Azure..."
+
+          # Verificar se conseguimos acessar a subscription
+          if ACCOUNT_INFO=$(az account show --query "{name: name, id: id, tenantId: tenantId}" -o json 2>/dev/null); then
+            echo "✅ Login Azure confirmado:"
+            echo "$ACCOUNT_INFO" | jq -r '"  Subscription: \(.name) (\(.id))"'
+            echo "$ACCOUNT_INFO" | jq -r '"  Tenant ID: \(.tenantId)"'
+          else
+            echo "❌ Falha na verificação do login Azure"
+            echo "🔍 Debug: Tentando listar subscriptions disponíveis..."
+            az account list --query "[].{Name: name, SubscriptionId: id}" -o table || true
+            exit 1
+          fi
+
+      - name: Extrair senha DB (Key Vault) ▶ arquivo temporário
+        id: secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+          VAULT_ENDPOINT="${{ secrets.AZURE_KEYVAULT_ENDPOINT }}"
+          if [[ "$VAULT_ENDPOINT" =~ https://([^.]+)\.vault\.azure\.net ]]; then
+            VAULT="${BASH_REMATCH[1]}"
+          else
+            echo "ERROR: Invalid AZURE_KEYVAULT_ENDPOINT format: $VAULT_ENDPOINT" >&2
+            exit 1
+          fi
+
+          echo "Loading secret from Azure Key Vault: $VAULT" >&2
+          DB_PASS=$(az keyvault secret show --vault-name "$VAULT" --name conexao-de-sorte-database-password --query value -o tsv 2>/dev/null)
+          if [ $? -ne 0 ] || [ -z "$DB_PASS" ]; then
+            echo "ERROR: Secret conexao-de-sorte-database-password not found in Azure Key Vault $VAULT" >&2
+            exit 1
+          fi
+          echo "::add-mask::$DB_PASS"
+          printf "%s" "$DB_PASS" > db_pass.txt
+
+      # ─── Login no GHCR ────────────────────────────────────────────────
+      - name: Login GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build & Push
+        id: build
+        run: |
+          REPO_LOWER=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+          TIMESTAMP=$(date +'%d-%m-%Y-%H-%M')
+          IMAGE=ghcr.io/$REPO_LOWER:${TIMESTAMP}
+          IMAGE_LATEST=ghcr.io/$REPO_LOWER:latest
+          docker buildx build \
+            --tag "$IMAGE" \
+            --tag "$IMAGE_LATEST" \
+            --push \
+            --provenance=true \
+            --sbom=true \
+            --secret id=db_password,src=db_pass.txt \
+            --file Dockerfile .
+          rm -f db_pass.txt
+          echo "image=$IMAGE" >> "$GITHUB_OUTPUT"
+
+# ----------------------------------------------------------------------
+# JOB 3.5 ▸ ANÁLISE DE SEGURANÇA (similar ao Gateway)
+# ----------------------------------------------------------------------
+
+  security-analysis:
+    needs: build-test-scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verificar score de segurança do Microserviço
+        run: |
+          chmod +x .github/workflows/scripts/security-analysis.sh
+          ./.github/workflows/scripts/security-analysis.sh microservice 4
+
+# ----------------------------------------------------------------------
+# JOB 4 ▸ DEPLOY SELF‑HOSTED (Docker Swarm + secrets)
+# ----------------------------------------------------------------------
+
+  deploy-selfhosted:
+    needs: build-image
+    runs-on: [ self-hosted, Linux, X64, conexao, conexao-de-sorte-backend-autenticacao ]
+    timeout-minutes: 8
+    if: |
+      github.ref == 'refs/heads/main' &&
+      (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.environment == 'production')) &&
+      success() &&
+      !cancelled()
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Login GHCR (Self-hosted)
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pull image do GHCR
+        run: docker pull "${{ needs.build-image.outputs.image }}"
+
+      # ─── Validação de ambiente de produção ───────────────────────────
+      - name: 🔐 Validar ambiente e secrets para deploy
+        shell: bash
+        run: |
+          echo "🔐 Validando ambiente de produção..."
+
+          # Verificar que estamos na branch main
+          if [ "${{ github.ref }}" != "refs/heads/main" ]; then
+            echo "❌ Deploy só é permitido na branch main"
+            exit 1
+          fi
+
+          # Verificar secrets obrigatórios
+          MISSING_SECRETS=""
+          if [ -z "${{ secrets.AZURE_CLIENT_ID }}" ]; then
+            MISSING_SECRETS="$MISSING_SECRETS AZURE_CLIENT_ID"
+          fi
+          if [ -z "${{ secrets.AZURE_TENANT_ID }}" ]; then
+            MISSING_SECRETS="$MISSING_SECRETS AZURE_TENANT_ID"
+          fi
+          if [ -z "${{ secrets.AZURE_SUBSCRIPTION_ID }}" ]; then
+            MISSING_SECRETS="$MISSING_SECRETS AZURE_SUBSCRIPTION_ID"
+          fi
+          if [ -z "${{ secrets.AZURE_KEYVAULT_ENDPOINT }}" ]; then
+            MISSING_SECRETS="$MISSING_SECRETS AZURE_KEYVAULT_ENDPOINT"
+          fi
+
+          if [ -n "$MISSING_SECRETS" ]; then
+            echo "❌ Secrets obrigatórios para produção não configurados:$MISSING_SECRETS"
+            exit 1
+          fi
+
+          echo "✅ Ambiente de produção validado"
+
+      # ─── OIDC login no Azure para acessar Key Vault ───────────────────
+      - name: 🔑 Azure Login (OIDC) - Produção
+        uses: azure/login@v2
+        timeout-minutes: 5
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          enable-AzPSSession: false
+
+      # ─── Verificação pós-login produção ───────────────────────────────
+      - name: 🔍 Verificar conectividade Azure produção
+        shell: bash
+        run: |
+          echo "🔍 Verificando conectividade Azure para produção..."
+
+          # Verificar subscription e tenant corretos
+          if ACCOUNT_INFO=$(az account show --query "{name: name, id: id, tenantId: tenantId}" -o json 2>/dev/null); then
+            echo "✅ Login Azure confirmado para produção:"
+            echo "$ACCOUNT_INFO" | jq -r '"  Subscription: \(.name)"'
+            echo "$ACCOUNT_INFO" | jq -r '"  Tenant ID: \(.tenantId)"'
+
+            # Verificar se podemos acessar o Key Vault
+            VAULT_ENDPOINT="${{ secrets.AZURE_KEYVAULT_ENDPOINT }}"
+            if [[ "$VAULT_ENDPOINT" =~ https://([^.]+)\.vault\.azure\.net ]]; then
+              VAULT_NAME="${BASH_REMATCH[1]}"
+              echo "🔑 Testando acesso ao Key Vault: $VAULT_NAME"
+
+              if az keyvault show --name "$VAULT_NAME" --query "name" -o tsv >/dev/null 2>&1; then
+                echo "✅ Acesso ao Key Vault confirmado"
+              else
+                echo "❌ Erro: Não foi possível acessar o Key Vault $VAULT_NAME"
+                echo "🔍 Verificando permissões do service principal..."
+                exit 1
+              fi
+            else
+              echo "❌ Formato inválido para AZURE_KEYVAULT_ENDPOINT"
+              exit 1
+            fi
+          else
+            echo "❌ Falha na verificação do login Azure para produção"
+            exit 1
+          fi
+
+      - name: Carregar todos os segredos do Azure Key Vault
+        shell: bash
+        run: |
+          set -euo pipefail
+          VAULT_ENDPOINT="${{ secrets.AZURE_KEYVAULT_ENDPOINT }}"
+          if [[ "$VAULT_ENDPOINT" =~ https://([^.]+)\.vault\.azure\.net ]]; then
+            VAULT="${BASH_REMATCH[1]}"
+          else
+            echo "ERROR: Invalid AZURE_KEYVAULT_ENDPOINT format: $VAULT_ENDPOINT" >&2
+            exit 1
+          fi
+
+          echo "🔐 Loading all secrets from Azure Key Vault: $VAULT" >&2
+
+          # Função para obter secret com fallback gracioso
+          get_secret() {
+            local secret_name="$1"
+            local fallback_value="$2"
+            local secret_value
+
+            secret_value=$(az keyvault secret show --vault-name "$VAULT" --name "$secret_name" --query value -o tsv 2>/dev/null || echo "")
+            if [ -z "$secret_value" ]; then
+              if [ -n "$fallback_value" ]; then
+                echo "⚠️ Secret $secret_name not found, using fallback" >&2
+                echo "$fallback_value"
+              else
+                echo "❌ Secret $secret_name not found and no fallback provided" >&2
+                return 1
+              fi
+            else
+              echo "✅ Secret $secret_name loaded successfully" >&2
+              echo "$secret_value"
+            fi
+          }
+
+          # Carregar segredos essenciais (sem fallback - devem falhar se não existirem)
+          DB_PASSWORD=$(get_secret "conexao-de-sorte-database-password" "")
+          DB_USERNAME=$(get_secret "conexao-de-sorte-database-username" "")
+
+          # Carregar segredos com fallbacks seguros
+          REDIS_HOST=$(get_secret "conexao-de-sorte-redis-host" "localhost")
+          REDIS_PORT=$(get_secret "conexao-de-sorte-redis-port" "6379")
+          REDIS_PASSWORD=$(get_secret "conexao-de-sorte-redis-password" "")
+          REDIS_DATABASE=$(get_secret "conexao-de-sorte-redis-database" "1")
+
+          JWT_SIGNING_KEY=$(get_secret "conexao-de-sorte-jwt-signing-key" "")
+          JWT_VERIFICATION_KEY=$(get_secret "conexao-de-sorte-jwt-verification-key" "")
+          JWT_KEY_ID=$(get_secret "conexao-de-sorte-jwt-key-id" "")
+          JWT_SECRET=$(get_secret "conexao-de-sorte-jwt-secret" "")
+          JWT_ISSUER=$(get_secret "conexao-de-sorte-jwt-issuer" "https://conexaodesorte.com.br")
+
+          ENCRYPTION_MASTER_KEY=$(get_secret "conexao-de-sorte-encryption-master-key" "")
+          ENCRYPTION_BACKUP_KEY=$(get_secret "conexao-de-sorte-encryption-backup-key" "")
+
+          CORS_ALLOWED_ORIGINS=$(get_secret "conexao-de-sorte-cors-allowed-origins" "https://conexaodesorte.com.br")
+          CORS_ALLOW_CREDENTIALS=$(get_secret "conexao-de-sorte-cors-allow-credentials" "false")
+
+          SSL_KEYSTORE_PASSWORD=$(get_secret "conexao-de-sorte-ssl-keystore-password" "")
+
+          # Criar/atualizar Docker secrets (remover secrets existentes antes de recriar)
+          echo "🔄 Managing Docker secrets..." >&2
+
+          # Função para criar/recriar secret
+          create_or_update_secret() {
+            local secret_name="$1"
+            local secret_value="$2"
+
+            if [ -n "$secret_value" ] && [ "$secret_value" != "" ]; then
+              echo "🔄 Processing secret: $secret_name" >&2
+
+              # Remover secret existente se existir (ignorar erros)
+              docker secret rm "$secret_name" >/dev/null 2>&1 || true
+
+              # Criar novo secret com tratamento de erro robusto
+              if printf "%s" "$secret_value" | docker secret create "$secret_name" - >/dev/null 2>&1; then
+                echo "✅ Secret $secret_name created successfully" >&2
+              else
+                echo "⚠️ Warning: Failed to create secret $secret_name, continuing..." >&2
+                # Não falhar o pipeline por causa de um secret específico
+              fi
+            else
+              echo "⚠️ Skipping empty secret $secret_name" >&2
+            fi
+          }
+
+          # Criar todos os secrets
+          create_or_update_secret "db_password" "$DB_PASSWORD"
+          create_or_update_secret "db_username" "$DB_USERNAME"
+          create_or_update_secret "redis_password" "$REDIS_PASSWORD"
+          create_or_update_secret "jwt_signing_key" "$JWT_SIGNING_KEY"
+          create_or_update_secret "jwt_verification_key" "$JWT_VERIFICATION_KEY"
+          create_or_update_secret "encryption_master_key" "$ENCRYPTION_MASTER_KEY"
+
+          # Verificar se secrets essenciais foram criados
+          echo "🔍 Verifying essential secrets..." >&2
+          ESSENTIAL_SECRETS=("db_password" "db_username")
+          for secret in "${ESSENTIAL_SECRETS[@]}"; do
+            if docker secret ls --format "{{.Name}}" | grep -q "^$secret$"; then
+              echo "✅ Essential secret $secret verified" >&2
+            else
+              echo "❌ Critical: Essential secret $secret not found" >&2
+              echo "Available secrets:" >&2
+              docker secret ls >&2
+              exit 1
+            fi
+          done
+
+          echo "✅ All essential Docker secrets verified successfully" >&2
+
+          # Salvar variáveis de ambiente para o próximo step
+          echo "REDIS_HOST=$REDIS_HOST" >> $GITHUB_ENV
+          echo "REDIS_PORT=$REDIS_PORT" >> $GITHUB_ENV
+          echo "REDIS_DATABASE=$REDIS_DATABASE" >> $GITHUB_ENV
+          echo "JWT_ISSUER=$JWT_ISSUER" >> $GITHUB_ENV
+          echo "JWT_KEY_ID=$JWT_KEY_ID" >> $GITHUB_ENV
+          echo "JWT_SECRET=$JWT_SECRET" >> $GITHUB_ENV
+          echo "ENCRYPTION_BACKUP_KEY=$ENCRYPTION_BACKUP_KEY" >> $GITHUB_ENV
+          echo "CORS_ALLOWED_ORIGINS=$CORS_ALLOWED_ORIGINS" >> $GITHUB_ENV
+          echo "CORS_ALLOW_CREDENTIALS=$CORS_ALLOW_CREDENTIALS" >> $GITHUB_ENV
+          echo "SSL_KEYSTORE_PASSWORD=$SSL_KEYSTORE_PASSWORD" >> $GITHUB_ENV
+
+      - name: 🚀 Deploy to Docker Swarm
+        run: |
+          IMAGE="${{ needs.build-image.outputs.image }}"
+          SERVICE_NAME="conexao-autenticacao_autenticacao"
+
+          # Garantir que a rede swarm exista
+          if ! docker network ls | awk '{print $2}' | grep -qx "conexao-network-swarm"; then
+            echo "🔗 Criando rede Docker attachable: conexao-network-swarm"
+            docker network create --driver overlay --attachable "conexao-network-swarm"
+          fi
+
+          echo "🔍 Verificando se serviço $SERVICE_NAME já existe..."
+          if docker service ls --format '{{.Name}}' | grep -qx "$SERVICE_NAME"; then
+            echo "🔄 Serviço já existe - executando UPDATE para nova imagem"
+            timeout 60s docker service update \
+              --image "$IMAGE" \
+              --detach=false \
+              --update-parallelism 1 \
+              --update-delay 10s \
+              "$SERVICE_NAME"
+          else
+            echo "🆕 Serviço não existe - executando CREATE"
+            timeout 120s docker service create \
+              --name "$SERVICE_NAME" \
+              --network "conexao-network-swarm" \
+              --publish 8091:8080 \
+              --replicas 1 \
+              --secret "db_password" \
+              --secret "db_username" \
+              --secret "redis_password" \
+              --secret "jwt_signing_key" \
+              --secret "jwt_verification_key" \
+              --secret "encryption_master_key" \
+              --env "SPRING_PROFILES_ACTIVE=prod,azure" \
+              --env "TZ=America/Sao_Paulo" \
+              --env "SERVER_PORT=8080" \
+              --env "SPRING_R2DBC_URL=r2dbc:mysql://localhost:3306/db_autenticacao" \
+              --env "SPRING_FLYWAY_URL=jdbc:mysql://localhost:3306/db_autenticacao" \
+              --env "SPRING_DATA_REDIS_HOST=${{ env.REDIS_HOST }}" \
+              --env "SPRING_DATA_REDIS_PORT=${{ env.REDIS_PORT }}" \
+              --env "SPRING_DATA_REDIS_DATABASE=${{ env.REDIS_DATABASE }}" \
+              --env "JWT_ISSUER=${{ env.JWT_ISSUER }}" \
+              --env "JWT_KEY_ID=${{ env.JWT_KEY_ID }}" \
+              --env "JWT_SECRET=${{ env.JWT_SECRET }}" \
+              --env "JWT_ALGORITHM=RS256" \
+              --env "JWT_ACCESS_TOKEN_VALIDITY=86400" \
+              --env "JWT_REFRESH_TOKEN_VALIDITY=604800" \
+              --env "CORS_ALLOWED_ORIGINS=${{ env.CORS_ALLOWED_ORIGINS }}" \
+              --env "CORS_ALLOW_CREDENTIALS=${{ env.CORS_ALLOW_CREDENTIALS }}" \
+              --env "AZURE_CLIENT_ID=${{ secrets.AZURE_CLIENT_ID }}" \
+              --env "AZURE_TENANT_ID=${{ secrets.AZURE_TENANT_ID }}" \
+              --env "AZURE_KEYVAULT_ENDPOINT=${{ secrets.AZURE_KEYVAULT_ENDPOINT }}" \
+              --env "AZURE_KEYVAULT_ENABLED=true" \
+              --env "SSL_KEYSTORE_PASSWORD=${{ env.SSL_KEYSTORE_PASSWORD }}" \
+              --env "FEATURE_AUTH_MICROSERVICE=true" \
+              --env "FEATURE_JWKS_ROTATION=true" \
+              --env "FEATURE_AUDIT_LOGGING=true" \
+              --env "FEATURE_METRICS_COLLECTION=true" \
+              --env "LOG_LEVEL_ROOT=INFO" \
+              --env "LOG_LEVEL_AUTENTICACAO=INFO" \
+              --env "LOG_LEVEL_SECURITY=WARN" \
+              --env "LOG_LEVEL_R2DBC=WARN" \
+              --env "LOG_LEVEL_MYSQL=WARN" \
+              --env "LOG_LEVEL_AZURE=WARN" \
+              --env "TRACING_PROBABILITY=0.1" \
+              --env "RATE_LIMIT_LOGIN=10" \
+              --env "RATE_LIMIT_LOGIN_BURST=20" \
+              --env "RATE_LIMIT_VALIDATION=100" \
+              --env "RATE_LIMIT_VALIDATION_BURST=200" \
+              --restart-condition "any" \
+              --restart-delay "30s" \
+              --restart-max-attempts "2" \
+              --restart-window "120s" \
+              --health-cmd 'curl -f http://localhost:8080/actuator/health' \
+              --health-interval "30s" \
+              --health-timeout "10s" \
+              --health-retries "3" \
+              --health-start-period "60s" \
+              --label "traefik.enable=true" \
+              --label "traefik.docker.network=conexao-network-swarm" \
+              --label "traefik.http.routers.autenticacao.rule=Host(\`autenticacao.conexaodesorte.com.br\`)" \
+              --label "traefik.http.routers.autenticacao.entrypoints=websecure" \
+              --label "traefik.http.routers.autenticacao.tls.certresolver=letsencrypt" \
+              --label "traefik.http.services.autenticacao.loadbalancer.server.port=8080" \
+              --detach=false \
+              "$IMAGE"
+          fi
+
+          # Verificar se deploy foi bem-sucedido com health check robusto
+          set -euo pipefail
+          INTERNAL_PORT=8080
+          MAX_ATTEMPTS=20
+          INTERVAL=10
+
+          echo "🔍 Verificando saúde do serviço $SERVICE_NAME..."
+
+          # Função para checar o endpoint de saúde
+          check_health() {
+              container_id=$(docker ps -q --filter "label=com.docker.swarm.service.name=${SERVICE_NAME}" | head -n 1)
+              if [[ -n "$container_id" ]]; then
+                  echo "📋 Container ID encontrado: $container_id"
+                  echo "🩺 Testando endpoint de saúde em http://localhost:${INTERNAL_PORT}/actuator/health"
+                  if docker exec "$container_id" sh -c "command -v curl >/dev/null && curl -sf http://localhost:${INTERNAL_PORT}/actuator/health || wget -qO- http://localhost:${INTERNAL_PORT}/actuator/health" | grep -q "UP"; then
+                      return 0 # Success
+                  else
+                      echo "⏳ Health endpoint ainda não está UP..."
+                      return 1 # Failure
+                  fi
+              else
+                  echo "⚠️ Container para o serviço $SERVICE_NAME ainda não encontrado."
+                  return 1 # Failure
+              fi
+          }
+
+          # Loop de verificação
+          for i in $(seq 1 $MAX_ATTEMPTS); do
+              echo "⏳ Verificação de saúde $i/$MAX_ATTEMPTS..."
+
+              replicas=$(docker service ls --filter name="$SERVICE_NAME" --format '{{.Replicas}}')
+              if [[ "$replicas" == "1/1" ]]; then
+                  echo "✅ Serviço $SERVICE_NAME tem 1/1 réplicas em execução."
+                  if check_health; then
+                      echo "✅ Serviço está saudável e respondendo!"
+                      echo "🎉 Deploy validado com sucesso!"
+                      exit 0
+                  fi
+              elif [[ "$replicas" == "0/1" ]]; then
+                   echo "❌ Serviço $SERVICE_NAME está com 0/1 réplicas. Verificando logs..."
+                   docker service logs "$SERVICE_NAME" --tail 50
+                   exit 1
+              else
+                  echo "⏳ Serviço $SERVICE_NAME ainda não está com 1/1 réplicas. Status: $replicas"
+              fi
+
+              sleep $INTERVAL
+          done
+
+          echo "❌ O serviço $SERVICE_NAME não ficou saudável dentro do tempo limite."
+          docker service ps "$SERVICE_NAME" --no-trunc
+          echo "📋 Logs finais:"
+          docker service logs "$SERVICE_NAME" --tail 100
+          exit 1
+
+# ----------------------------------------------------------------------
+# JOB 5 ▸ NOTIFY
+# ----------------------------------------------------------------------
+
+  notify:
+    if: always()
+    runs-on: ubuntu-latest
+    needs: [ build-test-scan, deploy-selfhosted ]
+    steps:
+      - name: Slack notify
+        env:
+          WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
+          RESULT: ${{ needs.deploy-selfhosted.result }}
+        shell: bash
+        run: |
+          if [ -z "$WEBHOOK" ]; then
+            echo "ℹ️ Slack webhook não configurado; etapa ignorada" && exit 0
+          fi
+          COLOR=good && [ "$RESULT" != "success" ] && COLOR=danger
+          curl -X POST -H 'Content-type: application/json' \
+               --data "{\"text\":\"Autenticacao – $RESULT\",\"attachments\":[{\"color\":\"$COLOR\"}]}" \
+               "$WEBHOOK"
