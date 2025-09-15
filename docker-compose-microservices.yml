@@ -25,7 +25,7 @@ services:
       - AZURE_KEYVAULT_ENDPOINT=${AZURE_KEYVAULT_ENDPOINT}
       - AZURE_KEYVAULT_NAME=${AZURE_KEYVAULT_NAME}
     networks:
-      - conexao-network
+      - conexao-network-swarm
     depends_on:
       - conexao-redis
     healthcheck:
@@ -68,7 +68,7 @@ services:
       - ZIPKIN_ENDPOINT=${ZIPKIN_ENDPOINT:-http://localhost:9411/api/v2/spans}
       - TRACING_PROBABILITY=${TRACING_PROBABILITY:-0.1}
     networks:
-      - conexao-network
+      - conexao-network-swarm
     depends_on:
       - mysql-infrastructure
       - conexao-redis
@@ -111,7 +111,7 @@ services:
       - ZIPKIN_ENDPOINT=${ZIPKIN_ENDPOINT:-http://localhost:9411/api/v2/spans}
       - TRACING_PROBABILITY=${TRACING_PROBABILITY:-0.1}
     networks:
-      - conexao-network
+      - conexao-network-swarm
     depends_on:
       - mysql-infrastructure
       - conexao-redis
@@ -145,7 +145,7 @@ services:
       - conexao-de-sorte-database-username=${conexao-de-sorte-database-username}
       - conexao-de-sorte-database-password=${conexao-de-sorte-database-password}
     networks:
-      - conexao-network
+      - conexao-network-swarm
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8084/actuator/health"]
       interval: 30s
@@ -173,7 +173,7 @@ services:
       - conexao-de-sorte-database-username=${conexao-de-sorte-database-username}
       - conexao-de-sorte-database-password=${conexao-de-sorte-database-password}
     networks:
-      - conexao-network
+      - conexao-network-swarm
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8087/actuator/health"]
       interval: 30s
@@ -201,7 +201,7 @@ services:
       - conexao-de-sorte-database-username=${conexao-de-sorte-database-username}
       - conexao-de-sorte-database-password=${conexao-de-sorte-database-password}
     networks:
-      - conexao-network
+      - conexao-network-swarm
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8088/actuator/health"]
       interval: 30s
@@ -229,7 +229,7 @@ services:
       - conexao-de-sorte-database-username=${conexao-de-sorte-database-username}
       - conexao-de-sorte-database-password=${conexao-de-sorte-database-password}
     networks:
-      - conexao-network
+      - conexao-network-swarm
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8089/actuator/health"]
       interval: 30s
@@ -254,7 +254,7 @@ services:
       - conexao-de-sorte-jwt-issuer=${conexao-de-sorte-jwt-issuer}
       - conexao-de-sorte-jwt-jwks-uri=${conexao-de-sorte-jwt-jwks-uri}
     networks:
-      - conexao-network
+      - conexao-network-swarm
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8085/actuator/health"]
       interval: 30s
@@ -281,7 +281,7 @@ services:
       - AZURE_KEYVAULT_ENDPOINT=${AZURE_KEYVAULT_ENDPOINT}
       - AZURE_KEYVAULT_NAME=${AZURE_KEYVAULT_NAME}
     networks:
-      - conexao-network
+      - conexao-network-swarm
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8088/actuator/health"]
       interval: 30s
@@ -321,7 +321,7 @@ services:
       - mysql_logs:/data/mysql/logs
       - proxysql_data:/data/proxysql
     networks:
-      - conexao-network
+      - conexao-network-swarm
     healthcheck:
       test: ["CMD", "mysql", "-h", "mysql-proxy", "-P", "6033", "-u", "admin", "-p$PROXYSQL_PASSWORD", "-e", "SELECT 1"]
       interval: 30s
@@ -348,12 +348,12 @@ volumes:
     driver: local
 
 networks:
-  conexao-network:
-    name: conexao-network
+  conexao-network-swarm:
+    name: conexao-network-swarm
     external: true
 
 # Observações:
-# - A rede 'conexao-network' deve existir (criada pelo projeto original)
+# - A rede 'conexao-network-swarm' deve existir (criada pelo projeto original)
 # - MySQL Infrastructure substitui o service mysql antigo
 # - Conexão via mysql-proxy:6033 com load balancing automático
 # - Variáveis de ambiente devem ser definidas no arquivo .env

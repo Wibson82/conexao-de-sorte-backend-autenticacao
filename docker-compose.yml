@@ -69,7 +69,7 @@ services:
       - TRACING_PROBABILITY=${TRACING_PROBABILITY:-0.1}
 
     networks:
-      - conexao-network
+      - conexao-network-swarm
 
     restart: unless-stopped
 
@@ -90,7 +90,7 @@ services:
           cpus: '0.5'
 
 networks:
-  conexao-network:
+  conexao-network-swarm:
     external: true
 
 # ============================================================================
