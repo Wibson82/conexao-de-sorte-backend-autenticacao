@@ -2,17 +2,25 @@ name: "🚀 Autenticacao – CI/CD Pipeline"
 
 on:
   push:
-    branches: [ main ]
+    branches: ["*"]
   pull_request:
-    branches: [ main ]
+    branches: ["*"]
   workflow_dispatch:
     inputs:
       environment:
         description: "Destino do deploy"
         required: false
-        default: "production"
+        default: "staging"
         type: choice
         options: [ staging, production ]
+
+# ----------------------------------------------------------------------
+# PERMISSÕES MÍNIMAS OIDC
+# ----------------------------------------------------------------------
+
+permissions:
+  contents: read
+  id-token: write
 
 # ----------------------------------------------------------------------
 # PARÂMETROS GERAIS
@@ -22,23 +30,130 @@ env:
   SERVICE_NAME: autenticacao
   TZ: America/Sao_Paulo
 
-# Observação: IDs públicos (CLIENT_ID, TENANT_ID, SUBSCRIPTION_ID) devem
-# ser cadastrados como **Repository Variables** (Settings ▸ Variables).
-# Eles são lidos via `vars.<NAME>` — não via `secrets`.
-
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name == 'workflow_dispatch' && inputs.environment || 'production' }}
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name == 'workflow_dispatch' && inputs.environment || 'staging' }}
   cancel-in-progress: false
 
 # ----------------------------------------------------------------------
-# JOB 1 ▸ VALIDAÇÃO DO WORKSPACE
+# JOBS
 # ----------------------------------------------------------------------
 
 jobs:
-  validate-environment:
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
+  build_and_deploy_backend:
+    runs-on: [self-hosted, Linux, X64, srv649924, conexao, conexao-de-sorte-backend-autenticacao]
+    timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
-      # REMOVIDO: Azure CLI não deve ser usado em produção
-      # Docker Secrets são sincronizados pela infraestrutura-core
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Azure Login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Get required Key Vault secrets (minimal and explicit)
+        id: kv
+        uses: azure/get-keyvault-secrets@v1
+        with:
+          keyvault: ${{ vars.AZURE_KEYVAULT_NAME }}
+          secrets: |
+            conexao-de-sorte-database-r2dbc-url
+            conexao-de-sorte-database-jdbc-url
+            conexao-de-sorte-database-username
+            conexao-de-sorte-database-password
+            conexao-de-sorte-redis-host
+            conexao-de-sorte-redis-port
+            conexao-de-sorte-redis-password
+            conexao-de-sorte-redis-database
+            conexao-de-sorte-jwt-secret
+            conexao-de-sorte-jwt-signing-key
+            conexao-de-sorte-jwt-verification-key
+            conexao-de-sorte-jwt-key-id
+            conexao-de-sorte-jwt-issuer
+            conexao-de-sorte-jwt-privateKey
+            conexao-de-sorte-jwt-publicKey
+            conexao-de-sorte-cors-allowed-origins
+            conexao-de-sorte-cors-allow-credentials
+            conexao-de-sorte-encryption-master-key
+            conexao-de-sorte-server-port
+
+      - name: Mask sensitive values
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          echo ::add-mask::"${{ steps.kv.outputs.conexao-de-sorte-database-password }}"
+          echo ::add-mask::"${{ steps.kv.outputs.conexao-de-sorte-redis-password }}"
+          echo ::add-mask::"${{ steps.kv.outputs.conexao-de-sorte-jwt-secret }}"
+          echo ::add-mask::"${{ steps.kv.outputs.conexao-de-sorte-jwt-signing-key }}"
+          echo ::add-mask::"${{ steps.kv.outputs.conexao-de-sorte-jwt-verification-key }}"
+          echo ::add-mask::"${{ steps.kv.outputs.conexao-de-sorte-jwt-privateKey }}"
+          echo ::add-mask::"${{ steps.kv.outputs.conexao-de-sorte-encryption-master-key }}"
+
+      - name: Set up JDK 24
+        uses: actions/setup-java@v4
+        with:
+          java-version: '24'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Build application
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          ./mvnw clean compile -DskipTests -B -q
+
+      - name: Run tests
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          ./mvnw test -B -q
+
+      - name: Build Docker image
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          docker build -t autenticacao:${{ github.sha }} .
+
+      - name: Security scan with Trivy
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
+            aquasec/trivy:latest image --exit-code 0 --severity HIGH,CRITICAL \
+            autenticacao:${{ github.sha }} || true
+
+      - name: Deploy to staging
+        if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+        shell: bash
+        env:
+          DATABASE_R2DBC_URL: ${{ steps.kv.outputs.conexao-de-sorte-database-r2dbc-url }}
+          DATABASE_JDBC_URL: ${{ steps.kv.outputs.conexao-de-sorte-database-jdbc-url }}
+          DATABASE_USERNAME: ${{ steps.kv.outputs.conexao-de-sorte-database-username }}
+          DATABASE_PASSWORD: ${{ steps.kv.outputs.conexao-de-sorte-database-password }}
+          REDIS_HOST: ${{ steps.kv.outputs.conexao-de-sorte-redis-host }}
+          REDIS_PORT: ${{ steps.kv.outputs.conexao-de-sorte-redis-port }}
+          REDIS_PASSWORD: ${{ steps.kv.outputs.conexao-de-sorte-redis-password }}
+          REDIS_DATABASE: ${{ steps.kv.outputs.conexao-de-sorte-redis-database }}
+          JWT_SECRET: ${{ steps.kv.outputs.conexao-de-sorte-jwt-secret }}
+          JWT_SIGNING_KEY: ${{ steps.kv.outputs.conexao-de-sorte-jwt-signing-key }}
+          JWT_VERIFICATION_KEY: ${{ steps.kv.outputs.conexao-de-sorte-jwt-verification-key }}
+          JWT_KEY_ID: ${{ steps.kv.outputs.conexao-de-sorte-jwt-key-id }}
+          JWT_ISSUER: ${{ steps.kv.outputs.conexao-de-sorte-jwt-issuer }}
+          JWT_PRIVATE_KEY: ${{ steps.kv.outputs.conexao-de-sorte-jwt-privateKey }}
+          JWT_PUBLIC_KEY: ${{ steps.kv.outputs.conexao-de-sorte-jwt-publicKey }}
+          CORS_ALLOWED_ORIGINS: ${{ steps.kv.outputs.conexao-de-sorte-cors-allowed-origins }}
+          CORS_ALLOW_CREDENTIALS: ${{ steps.kv.outputs.conexao-de-sorte-cors-allow-credentials }}
+          ENCRYPTION_MASTER_KEY: ${{ steps.kv.outputs.conexao-de-sorte-encryption-master-key }}
+          SERVER_PORT: ${{ steps.kv.outputs.conexao-de-sorte-server-port }}
+        run: |
+          set -Eeuo pipefail
+
+          # Deploy via Docker Compose with external secrets
+          docker compose -f docker-compose.yml up -d --force-recreate
+
+          # Health check
+          timeout 180 bash -c 'until curl -f http://localhost:8081/actuator/health; do sleep 5; done'
+
+          echo "✅ Deployment successful - autenticacao service is healthy"
