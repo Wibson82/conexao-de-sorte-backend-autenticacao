@@ -98,7 +98,7 @@ echo ::add-mask::"${{ steps.kv.outputs.conexao-de-sorte-encryption-master-key }}
 
 - **Total de segredos necessários:** 19
 - **Segredos de banco:** 4
-- **Segredos de Redis:** 4  
+- **Segredos de Redis:** 4
 - **Segredos JWT:** 8
 - **Segredos CORS:** 2
 - **Segredos de criptografia:** 1

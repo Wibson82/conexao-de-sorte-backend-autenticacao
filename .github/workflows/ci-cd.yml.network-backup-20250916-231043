@@ -1,0 +1,44 @@
+name: "🚀 Autenticacao – CI/CD Pipeline"
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Destino do deploy"
+        required: false
+        default: "production"
+        type: choice
+        options: [ staging, production ]
+
+# ----------------------------------------------------------------------
+# PARÂMETROS GERAIS
+# ----------------------------------------------------------------------
+
+env:
+  SERVICE_NAME: autenticacao
+  TZ: America/Sao_Paulo
+
+# Observação: IDs públicos (CLIENT_ID, TENANT_ID, SUBSCRIPTION_ID) devem
+# ser cadastrados como **Repository Variables** (Settings ▸ Variables).
+# Eles são lidos via `vars.<NAME>` — não via `secrets`.
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name == 'workflow_dispatch' && inputs.environment || 'production' }}
+  cancel-in-progress: false
+
+# ----------------------------------------------------------------------
+# JOB 1 ▸ VALIDAÇÃO DO WORKSPACE
+# ----------------------------------------------------------------------
+
+jobs:
+  validate-environment:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      # REMOVIDO: Azure CLI não deve ser usado em produção
+      # Docker Secrets são sincronizados pela infraestrutura-core
