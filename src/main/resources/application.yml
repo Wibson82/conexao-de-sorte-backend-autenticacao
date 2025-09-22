@@ -57,7 +57,7 @@ spring:
   # Flyway para migrations
   flyway:
     enabled: true
-    url: ${conexao-de-sorte-database-jdbc-url}
+    url: ${conexao-de-sorte-database-jdbc-url}/conexao_sorte_auth?useSSL=true&allowPublicKeyRetrieval=false&serverTimezone=America/Sao_Paulo
     user: ${conexao-de-sorte-database-username}
     password: ${conexao-de-sorte-database-password}
     locations: classpath:db/migration
@@ -74,9 +74,9 @@ spring:
 
   r2dbc:
     # Configuração segura - apenas Azure Key Vault, sem fallbacks
-    url: ${conexao-de-sorte-database-r2dbc-url}
+    url: ${conexao-de-sorte-database-r2dbc-url}/conexao_sorte_auth?useSSL=true&allowPublicKeyRetrieval=false&serverTimezone=America/Sao_Paulo
     username: ${conexao-de-sorte-database-username}
-    password: ${conexao-de-sorte-database-password:senha_teste}
+    password: ${conexao-de-sorte-database-password}
     pool:
       initial-size: 1  # Reduzido para startup mais rápido
       max-size: 10     # Reduzido para startup mais rápido
