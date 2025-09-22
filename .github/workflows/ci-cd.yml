@@ -95,7 +95,7 @@ jobs:
         uses: actions/setup-java@v4
         with:
           java-version: '25'
-          distribution: 'temurin'
+          distribution: 'corretto'
           cache: maven
 
       - name: Build application
