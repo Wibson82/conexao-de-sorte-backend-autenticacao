@@ -40,7 +40,7 @@ concurrency:
 
 jobs:
   build_and_deploy_backend:
-    runs-on: [self-hosted, Linux, X64, srv649924, conexao, conexao-de-sorte-backend-autenticacao]
+    runs-on: [self-hosted, Linux, X64,]
     timeout-minutes: 30
     steps:
       - name: Checkout code
