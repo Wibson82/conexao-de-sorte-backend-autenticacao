@@ -11,7 +11,7 @@ services:
     environment:
       - SPRING_PROFILES_ACTIVE=${ENVIRONMENT:-prod,azure}
       - TZ=America/Sao_Paulo
-      - SERVER_PORT=8080
+      - SERVER_PORT=8081
 
       # Database Configuration - MySQL Externo
       - SPRING_R2DBC_URL=${DATABASE_R2DBC_URL}
@@ -71,7 +71,7 @@ services:
     restart: unless-stopped
 
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/actuator/health"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8081/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -85,6 +85,36 @@ services:
         reservations:
           memory: 1G
           cpus: '0.5'
+
+    # ==========================================================================
+    # 🏷️ TRAEFIK LABELS - AUTENTICACAO SERVICE
+    # ==========================================================================
+    labels:
+      # Habilitar Traefik para este serviço
+      - "traefik.enable=true"
+      - "traefik.docker.network=conexao-network-swarm"
+
+      # Configuração do serviço Autenticacao
+      - "traefik.http.services.autenticacao-service.loadbalancer.server.port=8081"
+      - "traefik.http.services.autenticacao-service.loadbalancer.healthcheck.path=/actuator/health"
+      - "traefik.http.services.autenticacao-service.loadbalancer.healthcheck.interval=30s"
+
+      # Health check individual do Autenticacao
+      - "traefik.http.routers.autenticacao-health.rule=Host(`traefik.conexaodesorte.com.br`) && PathPrefix(`/health/service/autenticacao`)"
+      - "traefik.http.routers.autenticacao-health.entrypoints=websecure"
+      - "traefik.http.routers.autenticacao-health.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.autenticacao-health.service=autenticacao-service"
+      - "traefik.http.routers.autenticacao-health.middlewares=autenticacao-health-rewrite"
+
+      # Middleware para reescrever path do health check
+      - "traefik.http.middlewares.autenticacao-health-rewrite.replacepath.path=/actuator/health"
+
+      # Metadata do serviço
+      - "org.opencontainers.image.title=Conexão de Sorte - Autenticação"
+      - "org.opencontainers.image.description=Microserviço de autenticação e autorização"
+      - "org.opencontainers.image.version=1.0.0"
+      - "microservice.type=authentication"
+      - "microservice.category=security"
 
 networks:
   conexao-network-swarm:
