@@ -358,7 +358,7 @@
                 <configuration>
                     <rules>
                         <requireJavaVersion>
-                            <version>[24,)</version>
+                            <version>[25,)</version>
                             <message>🚫 DOWNGRADE BLOCKED: Java 25+ required, found ${java.version}</message>
                         </requireJavaVersion>
                         <requireMavenVersion>

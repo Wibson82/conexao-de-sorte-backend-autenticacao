@@ -19,12 +19,19 @@
 # ============================================================================
 
 # === ESTÁGIO 1: BUILD ===
-FROM maven:3.9.11-eclipse-temurin-25-alpine AS builder
+FROM amazoncorretto:25-alpine3.22 AS builder
 
 # Metadados da imagem
 LABEL maintainer="Conexão de Sorte <tech@conexaodesorte.com>"
 LABEL description="Microserviço de Autenticação - Build Stage"
 LABEL version="1.0.0"
+
+# Instalar Maven e dependências de build
+RUN apk add --no-cache \
+    maven \
+    curl \
+    bash \
+    && rm -rf /var/cache/apk/*
 
 # Variáveis de build
 ARG BUILD_DATE
@@ -63,7 +70,7 @@ RUN --mount=type=cache,target=/root/.m2 \
     -Dmaven.compiler.optimize=true
 
 # === ESTÁGIO 2: RUNTIME ===
-FROM eclipse-temurin:25-jre-alpine AS runtime
+FROM amazoncorretto:25-alpine3.22 AS runtime
 
 # Build metadata args (redeclared in this stage)
 ARG BUILD_DATE
@@ -157,7 +164,7 @@ LABEL org.opencontainers.image.url="https://conexaodesorte.com"
 LABEL org.opencontainers.image.source="https://github.com/conexaodesorte/autenticacao"
 LABEL org.opencontainers.image.authors="Equipe de Desenvolvimento <dev@conexaodesorte.com>"
 LABEL org.opencontainers.image.documentation="https://docs.conexaodesorte.com/autenticacao"
-LABEL org.opencontainers.image.base.name="eclipse-temurin:25-jre-alpine"
+LABEL org.opencontainers.image.base.name="amazoncorretto:25-alpine3.22"
 # Labels específicos da aplicação
 LABEL com.conexaodesorte.java.version="25"
 LABEL com.conexaodesorte.spring.version="3.5.5"
