@@ -1,6 +1,6 @@
 -- ================================================================
 -- MIGRATION V2: Criação das tabelas Papel e UsuarioPapel
--- Compatível com Java 24 + Spring Boot 3.5.5 + R2DBC
+-- Compatível com Java 25 + Spring Boot 3.5.5 + R2DBC
 -- ================================================================
 
 -- Tabela de Papéis (Roles)

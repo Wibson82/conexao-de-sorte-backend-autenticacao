@@ -99,7 +99,7 @@ src/main/java/br/tec/facilitaservicos/autenticacao/
 ## ⚡ Início Rápido
 
 ### Pré-requisitos
-- ☕ **Java 24+**
+- ☕ **Java 25+**
 - 🐳 **Docker & Docker Compose**
 - 📦 **Maven 3.9+**
 

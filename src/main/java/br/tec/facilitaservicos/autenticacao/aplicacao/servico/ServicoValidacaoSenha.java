@@ -15,7 +15,7 @@ import java.util.regex.Pattern;
 
 /**
  * Serviço reativo para validação de senhas com sistema de pontuação detalhado.
- * Implementa verificações robustas de segurança compatível com Java 24.
+ * Implementa verificações robustas de segurança compatível com Java 25.
  * 
  * Migrado de backend-original-2 para Spring WebFlux.
  */

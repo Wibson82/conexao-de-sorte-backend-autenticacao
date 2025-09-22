@@ -4,7 +4,7 @@
 #
 # Dockerfile otimizado para microserviço de autenticação com:
 # - Multi-stage build para reduzir tamanho da imagem
-# - Java 24 com JVM otimizada para containers
+# - Java 25 com JVM otimizada para containers
 # - Usuário não-root para segurança
 # - Health check nativo
 # - Otimizações de performance para OAuth2/JWT
@@ -19,7 +19,7 @@
 # ============================================================================
 
 # === ESTÁGIO 1: BUILD ===
-FROM maven:3.9.11-eclipse-temurin-24-alpine AS builder
+FROM maven:3.9.11-eclipse-temurin-25-alpine AS builder
 
 # Metadados da imagem
 LABEL maintainer="Conexão de Sorte <tech@conexaodesorte.com>"
@@ -63,7 +63,7 @@ RUN --mount=type=cache,target=/root/.m2 \
     -Dmaven.compiler.optimize=true
 
 # === ESTÁGIO 2: RUNTIME ===
-FROM eclipse-temurin:24-jre-alpine AS runtime
+FROM eclipse-temurin:25-jre-alpine AS runtime
 
 # Build metadata args (redeclared in this stage)
 ARG BUILD_DATE
@@ -127,7 +127,7 @@ ENV CONEXAO_DE_SORTE_DATABASE_HOST=${CONEXAO_DE_SORTE_DATABASE_HOST} \
 # NOTA: Todas as variáveis sensíveis devem ser injetadas em runtime
 # via docker run -e ou docker-compose environment/env_file/secrets
 
-## JVM otimizada para containers: flags removidas para compatibilidade total com Java 24
+## JVM otimizada para containers: flags removidas para compatibilidade total com Java 25
 # As flags e perfis devem ser definidos externamente via workflow/deploy
 
 # Variáveis de ambiente da aplicação devem ser fornecidas externamente (CI/Compose/Helm)
@@ -157,9 +157,9 @@ LABEL org.opencontainers.image.url="https://conexaodesorte.com"
 LABEL org.opencontainers.image.source="https://github.com/conexaodesorte/autenticacao"
 LABEL org.opencontainers.image.authors="Equipe de Desenvolvimento <dev@conexaodesorte.com>"
 LABEL org.opencontainers.image.documentation="https://docs.conexaodesorte.com/autenticacao"
-LABEL org.opencontainers.image.base.name="eclipse-temurin:24-jre-alpine"
+LABEL org.opencontainers.image.base.name="eclipse-temurin:25-jre-alpine"
 # Labels específicos da aplicação
-LABEL com.conexaodesorte.java.version="24"
+LABEL com.conexaodesorte.java.version="25"
 LABEL com.conexaodesorte.spring.version="3.5.5"
 LABEL com.conexaodesorte.service.name="autenticacao"
 LABEL com.conexaodesorte.service.tier="backend"
