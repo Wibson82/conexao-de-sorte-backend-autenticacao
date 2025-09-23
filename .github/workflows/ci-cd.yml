@@ -15,6 +15,7 @@ permissions:
 env:
   SERVICE_NAME: autenticacao
   TZ: America/Sao_Paulo
+  STACK_NAME: conexao-autenticacao
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -27,6 +28,7 @@ jobs:
     timeout-minutes: 20
     outputs:
       image_name: ${{ steps.prep.outputs.image_name }}
+      image_tag: ${{ github.sha }}
 
     steps:
       - name: Checkout code
@@ -36,7 +38,7 @@ jobs:
         id: prep
         run: |
           REPO=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
-          echo "image_name=ghcr.io/$REPO:${{ github.sha }}" >> $GITHUB_OUTPUT
+          echo "image_name=ghcr.io/$REPO" >> $GITHUB_OUTPUT
 
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v3
@@ -69,12 +71,12 @@ jobs:
         with:
           context: .
           push: true
-          tags: ${{ steps.prep.outputs.image_name }}
+          tags: ${{ steps.prep.outputs.image_name }}:${{ github.sha }}
 
       - name: Security scan with Trivy
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: ${{ steps.prep.outputs.image_name }}
+          image-ref: ${{ steps.prep.outputs.image_name }}:${{ github.sha }}
           format: 'table'
           exit-code: '0'
           ignore-unfixed: true
@@ -98,30 +100,15 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Get secrets from Azure Key Vault (via AZ CLI)
+      - name: Get secrets for Docker Swarm
         shell: bash
         run: |
-          echo "Fetching secrets from Azure Key Vault using Azure CLI..."
+          echo "Fetching secrets from Azure Key Vault..."
           SECRETS_LIST=(
-            "conexao-de-sorte-database-r2dbc-url"
-            "conexao-de-sorte-database-jdbc-url"
-            "conexao-de-sorte-database-username"
             "conexao-de-sorte-database-password"
-            "conexao-de-sorte-redis-host"
-            "conexao-de-sorte-redis-port"
             "conexao-de-sorte-redis-password"
-            "conexao-de-sorte-redis-database"
             "conexao-de-sorte-jwt-secret"
-            "conexao-de-sorte-jwt-signing-key"
-            "conexao-de-sorte-jwt-verification-key"
-            "conexao-de-sorte-jwt-key-id"
-            "conexao-de-sorte-jwt-issuer"
-            "conexao-de-sorte-jwt-privateKey"
-            "conexao-de-sorte-jwt-publicKey"
-            "conexao-de-sorte-cors-allowed-origins"
-            "conexao-de-sorte-cors-allow-credentials"
             "conexao-de-sorte-encryption-master-key"
-            "conexao-de-sorte-server-port"
           )
           for secret_name in "${SECRETS_LIST[@]}"; do
             echo "Fetching secret: $secret_name"
@@ -131,7 +118,7 @@ jobs:
               env_var_name=$(echo "$secret_name" | tr '-' '_' | tr '[:lower:]' '[:upper:]')
               echo "${env_var_name}=${secret_value}" >> $GITHUB_ENV
             else
-              echo "Warning: Secret '$secret_name' not found in Azure Key Vault."
+              echo "Warning: Secret '$secret_name' not found."
             fi
           done
 
@@ -151,53 +138,42 @@ jobs:
       - name: Deploy to Staging
         env:
           IMAGE_NAME: ${{ needs.validate-and-build.outputs.image_name }}
-          STACK_NAME: conexao-autenticacao
+          IMAGE_TAG: ${{ needs.validate-and-build.outputs.image_tag }}
         run: |
           set -Eeuo pipefail
-          echo "Deploying image: $IMAGE_NAME"
+          echo "Deploying image: ${IMAGE_NAME}:${IMAGE_TAG}"
           
-          # Pull the new image from GHCR
-          docker pull $IMAGE_NAME
-
-          # Deploy using Docker Stack
+          export IMAGE_TAG
+          
           docker stack deploy -c docker-compose.yml --with-registry-auth "${STACK_NAME}"
 
-          echo "Waiting for deployment to stabilize..."
-          sleep 30
-          
-          health_monitor_url="https://traefik.conexaodesorte.com.br/health/service/autenticacao"
-          timeout_total=300
+      - name: 🏥 Verify Deployment on Runner
+        run: |
+          echo "Verifying deployment on runner..."
+          timeout=180
           interval=10
           elapsed=0
-          last_response=""
-          status=""
-
-          while [ $elapsed -lt $timeout_total ]; do
-            echo "🔎 Consultando Traefik (${elapsed}/${timeout_total}s)..."
-            response=$(curl -sf --max-time 10 "$health_monitor_url" 2>/dev/null || true)
-            last_response="$response"
-
-            if [[ -n "$response" ]]; then
-              status=$(echo "$response" | jq -r '.status // "unknown"' 2>/dev/null || echo "unknown")
-              status=${status//\n'/}
-              echo "📊 Status reportado: ${status:-indefinido}"
-
-              if [[ "$status" == "healthy" ]]; then
-                echo "✅ Traefik confirmou Autenticacao como healthy"
-                break
+          while [ $elapsed -lt $timeout ]; do
+            echo "🔎 Verifying containers for '${STACK_NAME}' (${elapsed}/${timeout}s)..."
+            
+            container_id=$(docker ps --filter "name=${STACK_NAME}" --filter "status=running" --format "{{.ID}}" | head -n 1)
+            
+            if [[ -n "$container_id" ]]; then
+              health_status=$(docker inspect --format='{{.State.Health.Status}}' "$container_id" 2>/dev/null || echo "no-health-check")
+              echo "Container '$container_id' found with health status: '$health_status'"
+              
+              if [[ "$health_status" == "healthy" ]]; then
+                echo "✅ Deployment successful! Container is healthy."
+                exit 0
               fi
             else
-              echo "⚠️ Traefik sem resposta nesta tentativa"
+              echo "⚠️ No running container found for '${STACK_NAME}' yet."
             fi
-
+            
             sleep "$interval"
             elapsed=$((elapsed + interval))
           done
-
-          if [[ "$status" != "healthy" ]]; then
-            echo "❌ Traefik nao confirmou Autenticacao como healthy apos ${timeout_total}s"
-            echo "📝 Ultima resposta recebida: ${last_response:-<sem resposta>}"
-            exit 1
-          fi
-
-          echo "✅ Deployment successful - autenticacao service is healthy"
+          
+          echo "❌ Timeout: Deployment did not become healthy after ${timeout}s."
+          docker service ls --filter name="${STACK_NAME}"
+          exit 1
