@@ -150,7 +150,7 @@ jobs:
         run: |
           set -Eeuo pipefail
           echo "Deploying image with tag: $IMAGE_TAG"
-          
+
           # Pull the new image from GHCR
           docker pull ${{ env.IMAGE_NAME }}
 
@@ -159,7 +159,7 @@ jobs:
 
           echo "Waiting for deployment to stabilize..."
           sleep 30
-          
+
           # Health check through Traefik
           health_monitor_url="https://traefik.conexaodesorte.com.br/health/service/autenticacao"
           timeout_total=300
@@ -176,25 +176,25 @@ jobs:
             if [[ -n "$response" ]]; then
               status=$(echo "$response" | jq -r '.status // "unknown"' 2>/dev/null || echo "unknown")
                   status=${status//\n'/}$'
-'/}
-              echo "📊 Status reportado: ${status:-indefinido}"
+                  '/}
+                                echo "📊 Status reportado: ${status:-indefinido}"
 
-              if [[ "$status" == "healthy" ]]; then
-                echo "✅ Traefik confirmou Autenticacao como healthy"
-                break
-              fi
-            else
-              echo "⚠️ Traefik sem resposta nesta tentativa"
-            fi
+                                if [[ "$status" == "healthy" ]]; then
+                                  echo "✅ Traefik confirmou Autenticacao como healthy"
+                                  break
+                                fi
+                              else
+                                echo "⚠️ Traefik sem resposta nesta tentativa"
+                              fi
 
-            sleep "$interval"
-            elapsed=$((elapsed + interval))
-          done
+                              sleep "$interval"
+                              elapsed=$((elapsed + interval))
+                            done
 
-          if [[ "$status" != "healthy" ]]; then
-            echo "❌ Traefik nao confirmou Autenticacao como healthy apos ${timeout_total}s"
-            echo "📝 Ultima resposta recebida: ${last_response:-<sem resposta>}"
-            exit 1
-          fi
+                            if [[ "$status" != "healthy" ]]; then
+                              echo "❌ Traefik nao confirmou Autenticacao como healthy apos ${timeout_total}s"
+                              echo "📝 Ultima resposta recebida: ${last_response:-<sem resposta>}"
+                              exit 1
+                            fi
 
-          echo "✅ Deployment successful - autenticacao service is healthy"
+                            echo "✅ Deployment successful - autenticacao service is healthy"
