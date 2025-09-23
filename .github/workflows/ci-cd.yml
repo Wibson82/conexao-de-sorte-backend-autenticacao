@@ -40,7 +40,7 @@ concurrency:
 
 jobs:
   build_and_deploy_backend:
-    runs-on: [self-hosted, Linux, X64]
+    runs-on: [self-hosted, Linux, X64, conexao-de-sorte-backend-autenticacao]
     timeout-minutes: 30
     steps:
       - name: Checkout code
@@ -53,99 +53,62 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Get required Key Vault secrets (minimal and explicit)
-        id: kv
-        uses: azure/get-keyvault-secrets@v1
-        with:
-          keyvault: ${{ secrets.AZURE_KEYVAULT_NAME }}
-          secrets: |
-            conexao-de-sorte-database-r2dbc-url
-            conexao-de-sorte-database-jdbc-url
-            conexao-de-sorte-database-username
-            conexao-de-sorte-database-password
-            conexao-de-sorte-redis-host
-            conexao-de-sorte-redis-port
-            conexao-de-sorte-redis-password
-            conexao-de-sorte-redis-database
-            conexao-de-sorte-jwt-secret
-            conexao-de-sorte-jwt-signing-key
-            conexao-de-sorte-jwt-verification-key
-            conexao-de-sorte-jwt-key-id
-            conexao-de-sorte-jwt-issuer
-            conexao-de-sorte-jwt-privateKey
-            conexao-de-sorte-jwt-publicKey
-            conexao-de-sorte-cors-allowed-origins
-            conexao-de-sorte-cors-allow-credentials
-            conexao-de-sorte-encryption-master-key
-            conexao-de-sorte-server-port
-
-      - name: Mask sensitive values
+      - name: Get secrets from Azure Key Vault (via AZ CLI)
         shell: bash
         run: |
-          set -Eeuo pipefail
-          echo ::add-mask::"${{ steps.kv.outputs.conexao-de-sorte-database-password }}"
-          echo ::add-mask::"${{ steps.kv.outputs.conexao-de-sorte-redis-password }}"
-          echo ::add-mask::"${{ steps.kv.outputs.conexao-de-sorte-jwt-secret }}"
-          echo ::add-mask::"${{ steps.kv.outputs.conexao-de-sorte-jwt-signing-key }}"
-          echo ::add-mask::"${{ steps.kv.outputs.conexao-de-sorte-jwt-verification-key }}"
-          echo ::add-mask::"${{ steps.kv.outputs.conexao-de-sorte-jwt-privateKey }}"
-          echo ::add-mask::"${{ steps.kv.outputs.conexao-de-sorte-encryption-master-key }}"
+          echo "Fetching secrets from Azure Key Vault using Azure CLI..."
+          SECRETS_LIST=(
+            "conexao-de-sorte-database-r2dbc-url"
+            "conexao-de-sorte-database-jdbc-url"
+            "conexao-de-sorte-database-username"
+            "conexao-de-sorte-database-password"
+            "conexao-de-sorte-redis-host"
+            "conexao-de-sorte-redis-port"
+            "conexao-de-sorte-redis-password"
+            "conexao-de-sorte-redis-database"
+            "conexao-de-sorte-jwt-secret"
+            "conexao-de-sorte-jwt-signing-key"
+            "conexao-de-sorte-jwt-verification-key"
+            "conexao-de-sorte-jwt-key-id"
+            "conexao-de-sorte-jwt-issuer"
+            "conexao-de-sorte-jwt-privateKey"
+            "conexao-de-sorte-jwt-publicKey"
+            "conexao-de-sorte-cors-allowed-origins"
+            "conexao-de-sorte-cors-allow-credentials"
+            "conexao-de-sorte-encryption-master-key"
+            "conexao-de-sorte-server-port"
+          )
 
-      - name: 🔐 Criar Docker Secrets from Azure Key Vault
-        run: |
-          set -euo pipefail
-          echo "🔐 Criando Docker Secrets a partir dos valores do Azure Key Vault..."
-
-          # Lista de secrets essenciais para injetar no Docker Swarm
-          secrets_list="conexao-de-sorte-database-r2dbc-url,conexao-de-sorte-database-username,conexao-de-sorte-database-password,conexao-de-sorte-redis-host,conexao-de-sorte-redis-port,conexao-de-sorte-redis-password,conexao-de-sorte-redis-database,conexao-de-sorte-jwt-secret,conexao-de-sorte-jwt-issuer,conexao-de-sorte-server-port"
-
-          IFS=',' read -ra SECRETS_ARRAY <<< "$secrets_list"
-          created_secrets=0
-
-          for secret_name in "${SECRETS_ARRAY[@]}"; do
-            # Converter nome do secret para saída do step Key Vault
-            kv_output_name=$(echo "$secret_name" | tr '[:upper:]' '[:lower:]' | tr '_' '-')
-            secret_value=""
-
-            # Obter valor do Key Vault outputs
-            case "$secret_name" in
-              "conexao-de-sorte-database-r2dbc-url") secret_value="${{ steps.kv.outputs.conexao-de-sorte-database-r2dbc-url }}" ;;
-              "conexao-de-sorte-database-username") secret_value="${{ steps.kv.outputs.conexao-de-sorte-database-username }}" ;;
-              "conexao-de-sorte-database-password") secret_value="${{ steps.kv.outputs.conexao-de-sorte-database-password }}" ;;
-              "conexao-de-sorte-redis-host") secret_value="${{ steps.kv.outputs.conexao-de-sorte-redis-host }}" ;;
-              "conexao-de-sorte-redis-port") secret_value="${{ steps.kv.outputs.conexao-de-sorte-redis-port }}" ;;
-              "conexao-de-sorte-redis-password") secret_value="${{ steps.kv.outputs.conexao-de-sorte-redis-password }}" ;;
-              "conexao-de-sorte-redis-database") secret_value="${{ steps.kv.outputs.conexao-de-sorte-redis-database }}" ;;
-              "conexao-de-sorte-jwt-secret") secret_value="${{ steps.kv.outputs.conexao-de-sorte-jwt-secret }}" ;;
-              "conexao-de-sorte-jwt-issuer") secret_value="${{ steps.kv.outputs.conexao-de-sorte-jwt-issuer }}" ;;
-              "conexao-de-sorte-server-port") secret_value="${{ steps.kv.outputs.conexao-de-sorte-server-port }}" ;;
-            esac
-
+          for secret_name in "${SECRETS_LIST[@]}"; do
+            echo "Fetching secret: $secret_name"
+            secret_value=$(az keyvault secret show --vault-name "${{ secrets.AZURE_KEYVAULT_NAME }}" --name "$secret_name" --query "value" -o tsv 2>/dev/null)
             if [[ -n "$secret_value" ]]; then
-              echo "🔐 Criando Docker Secret: $secret_name"
-
-              # Remover secret existente se houver
-              if docker secret inspect "$secret_name" >/dev/null 2>&1; then
-                echo "🗑️ Removendo secret existente: $secret_name"
-                docker secret rm "$secret_name" || true
-                sleep 1
-              fi
-
-              # Criar novo secret
-              echo -n "$secret_value" | docker secret create "$secret_name" -
-              echo "✅ Docker Secret criado: $secret_name"
-              ((created_secrets++))
+              echo "::add-mask::$secret_value"
+              env_var_name=$(echo "$secret_name" | tr '-' '_' | tr '[:lower:]' '[:upper:]')
+              echo "${env_var_name}=${secret_value}" >> $GITHUB_ENV
+              echo "Secret '$secret_name' fetched and set as environment variable '${env_var_name}'."
             else
-              echo "⚠️ Secret $secret_name não encontrado no Key Vault"
+              echo "Warning: Secret '$secret_name' not found in Azure Key Vault."
             fi
           done
 
-          echo "✅ Total de Docker Secrets criados: $created_secrets/${#SECRETS_ARRAY[@]}"
-
-          if [[ $created_secrets -lt 5 ]]; then
-            echo "❌ Poucos secrets criados - deploy pode falhar"
-            exit 1
-          fi
+      - name: 🔐 Create Docker Secrets
+        run: |
+          echo "Creating Docker secrets..."
+          
+          # Remove secrets first to ensure idempotency
+          docker secret rm REDIS_PASSWORD || true
+          docker secret rm DATABASE_PASSWORD || true
+          docker secret rm JWT_SECRET || true
+          docker secret rm ENCRYPTION_MASTER_KEY || true
+          
+          # Create secrets from environment variables fetched from Key Vault
+          printf "$CONEXAO_DE_SORTE_REDIS_PASSWORD" | docker secret create REDIS_PASSWORD -
+          printf "$CONEXAO_DE_SORTE_DATABASE_PASSWORD" | docker secret create DATABASE_PASSWORD -
+          printf "$CONEXAO_DE_SORTE_JWT_SECRET" | docker secret create JWT_SECRET -
+          printf "$CONEXAO_DE_SORTE_ENCRYPTION_MASTER_KEY" | docker secret create ENCRYPTION_MASTER_KEY -
+          
+          echo "Docker secrets created."
 
       - name: Set up JDK 25
         uses: actions/setup-java@v4
@@ -183,26 +146,6 @@ jobs:
       - name: Deploy to staging
         if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
         shell: bash
-        env:
-          DATABASE_R2DBC_URL: ${{ steps.kv.outputs.conexao-de-sorte-database-r2dbc-url }}
-          DATABASE_JDBC_URL: ${{ steps.kv.outputs.conexao-de-sorte-database-jdbc-url }}
-          DATABASE_USERNAME: ${{ steps.kv.outputs.conexao-de-sorte-database-username }}
-          DATABASE_PASSWORD: ${{ steps.kv.outputs.conexao-de-sorte-database-password }}
-          REDIS_HOST: ${{ steps.kv.outputs.conexao-de-sorte-redis-host }}
-          REDIS_PORT: ${{ steps.kv.outputs.conexao-de-sorte-redis-port }}
-          REDIS_PASSWORD: ${{ steps.kv.outputs.conexao-de-sorte-redis-password }}
-          REDIS_DATABASE: ${{ steps.kv.outputs.conexao-de-sorte-redis-database }}
-          JWT_SECRET: ${{ steps.kv.outputs.conexao-de-sorte-jwt-secret }}
-          JWT_SIGNING_KEY: ${{ steps.kv.outputs.conexao-de-sorte-jwt-signing-key }}
-          JWT_VERIFICATION_KEY: ${{ steps.kv.outputs.conexao-de-sorte-jwt-verification-key }}
-          JWT_KEY_ID: ${{ steps.kv.outputs.conexao-de-sorte-jwt-key-id }}
-          JWT_ISSUER: ${{ steps.kv.outputs.conexao-de-sorte-jwt-issuer }}
-          JWT_PRIVATE_KEY: ${{ steps.kv.outputs.conexao-de-sorte-jwt-privateKey }}
-          JWT_PUBLIC_KEY: ${{ steps.kv.outputs.conexao-de-sorte-jwt-publicKey }}
-          CORS_ALLOWED_ORIGINS: ${{ steps.kv.outputs.conexao-de-sorte-cors-allowed-origins }}
-          CORS_ALLOW_CREDENTIALS: ${{ steps.kv.outputs.conexao-de-sorte-cors-allow-credentials }}
-          ENCRYPTION_MASTER_KEY: ${{ steps.kv.outputs.conexao-de-sorte-encryption-master-key }}
-          SERVER_PORT: ${{ steps.kv.outputs.conexao-de-sorte-server-port }}
         run: |
           set -Eeuo pipefail
 
