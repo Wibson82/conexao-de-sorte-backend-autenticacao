@@ -81,7 +81,7 @@ jobs:
 
           for secret_name in "${SECRETS_LIST[@]}"; do
             echo "Fetching secret: $secret_name"
-            secret_value=$(az keyvault secret show --vault-name "${{ secrets.AZURE_KEYVAULT_NAME }}" --name "$secret_name" --query "value" -o tsv 2>/dev/null)
+            secret_value=$(az keyvault secret show --vault-name "${{ secrets.AZURE_KEYVAULT_NAME }}" --name "$secret_name" --query "value" -o tsv)
             if [[ -n "$secret_value" ]]; then
               echo "::add-mask::$secret_value"
               env_var_name=$(echo "$secret_name" | tr '-' '_' | tr '[:lower:]' '[:upper:]')
