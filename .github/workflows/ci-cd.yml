@@ -175,7 +175,7 @@ jobs:
 
             if [[ -n "$response" ]]; then
               status=$(echo "$response" | jq -r '.status // "unknown"' 2>/dev/null || echo "unknown")
-              status=${status//$'
+                  status=${status//\n'/}$'
 '/}
               echo "📊 Status reportado: ${status:-indefinido}"
 
