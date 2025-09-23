@@ -15,7 +15,6 @@ permissions:
 env:
   SERVICE_NAME: autenticacao
   TZ: America/Sao_Paulo
-  IMAGE_NAME: ghcr.io/${{ github.repository }}:${{ github.sha }}
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -27,11 +26,17 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     outputs:
-      image_tag: ${{ github.sha }}
+      image_name: ${{ steps.prep.outputs.image_name }}
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Prepare image tags
+        id: prep
+        run: |
+          REPO=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+          echo "image_name=ghcr.io/$REPO:${{ github.sha }}" >> $GITHUB_OUTPUT
 
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v3
@@ -64,12 +69,12 @@ jobs:
         with:
           context: .
           push: true
-          tags: ${{ env.IMAGE_NAME }}
+          tags: ${{ steps.prep.outputs.image_name }}
 
       - name: Security scan with Trivy
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: ${{ env.IMAGE_NAME }}
+          image-ref: ${{ steps.prep.outputs.image_name }}
           format: 'table'
           exit-code: '0'
           ignore-unfixed: true
@@ -145,22 +150,21 @@ jobs:
 
       - name: Deploy to Staging
         env:
-          IMAGE_TAG: ${{ needs.validate-and-build.outputs.image_tag }}
+          IMAGE_NAME: ${{ needs.validate-and-build.outputs.image_name }}
           STACK_NAME: conexao-autenticacao
         run: |
           set -Eeuo pipefail
-          echo "Deploying image with tag: $IMAGE_TAG"
-
+          echo "Deploying image: $IMAGE_NAME"
+          
           # Pull the new image from GHCR
-          docker pull ${{ env.IMAGE_NAME }}
+          docker pull $IMAGE_NAME
 
           # Deploy using Docker Stack
           docker stack deploy -c docker-compose.yml --with-registry-auth "${STACK_NAME}"
 
           echo "Waiting for deployment to stabilize..."
           sleep 30
-
-          # Health check through Traefik
+          
           health_monitor_url="https://traefik.conexaodesorte.com.br/health/service/autenticacao"
           timeout_total=300
           interval=10
@@ -175,26 +179,25 @@ jobs:
 
             if [[ -n "$response" ]]; then
               status=$(echo "$response" | jq -r '.status // "unknown"' 2>/dev/null || echo "unknown")
-                  status=${status//\n'/}$'
-                  '/}
-                                echo "📊 Status reportado: ${status:-indefinido}"
+              status=${status//\n'/}
+              echo "📊 Status reportado: ${status:-indefinido}"
 
-                                if [[ "$status" == "healthy" ]]; then
-                                  echo "✅ Traefik confirmou Autenticacao como healthy"
-                                  break
-                                fi
-                              else
-                                echo "⚠️ Traefik sem resposta nesta tentativa"
-                              fi
+              if [[ "$status" == "healthy" ]]; then
+                echo "✅ Traefik confirmou Autenticacao como healthy"
+                break
+              fi
+            else
+              echo "⚠️ Traefik sem resposta nesta tentativa"
+            fi
 
-                              sleep "$interval"
-                              elapsed=$((elapsed + interval))
-                            done
+            sleep "$interval"
+            elapsed=$((elapsed + interval))
+          done
 
-                            if [[ "$status" != "healthy" ]]; then
-                              echo "❌ Traefik nao confirmou Autenticacao como healthy apos ${timeout_total}s"
-                              echo "📝 Ultima resposta recebida: ${last_response:-<sem resposta>}"
-                              exit 1
-                            fi
+          if [[ "$status" != "healthy" ]]; then
+            echo "❌ Traefik nao confirmou Autenticacao como healthy apos ${timeout_total}s"
+            echo "📝 Ultima resposta recebida: ${last_response:-<sem resposta>}"
+            exit 1
+          fi
 
-                            echo "✅ Deployment successful - autenticacao service is healthy"
+          echo "✅ Deployment successful - autenticacao service is healthy"
