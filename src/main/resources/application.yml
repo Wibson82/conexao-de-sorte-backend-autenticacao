@@ -92,7 +92,7 @@ spring:
 
 # Server Configuration (aplicável a todos os perfis)
 server:
-  port: ${conexao-de-sorte-server-port}
+  port: ${SERVER_PORT:8081}
   shutdown: graceful
 
   # SSL/TLS Configuration

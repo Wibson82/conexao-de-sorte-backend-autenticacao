@@ -157,7 +157,7 @@ security:
 
 # ===== SERVER CONFIGURATION =====
 server:
-  port: ${conexao-de-sorte-server-port:8081}
+  port: ${SERVER_PORT:8081}
   compression:
     enabled: true
   http2:
