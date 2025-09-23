@@ -2,46 +2,86 @@ name: "🚀 Autenticacao - CI/CD Pipeline"
 
 on:
   push:
-    branches: ["*"]
+    branches: [ main ]
   pull_request:
-    branches: ["*"]
+    branches: [ main ]
   workflow_dispatch:
-    inputs:
-      environment:
-        description: "Destino do deploy"
-        required: false
-        default: "staging"
-        type: choice
-        options: [ staging, production ]
-
-# ----------------------------------------------------------------------
-# PERMISSÕES MÍNIMAS OIDC
-# ----------------------------------------------------------------------
 
 permissions:
   contents: read
   id-token: write
-
-# ----------------------------------------------------------------------
-# PARÂMETROS GERAIS
-# ----------------------------------------------------------------------
+  packages: write # Permissão para escrever no GitHub Container Registry
 
 env:
   SERVICE_NAME: autenticacao
   TZ: America/Sao_Paulo
+  IMAGE_NAME: ghcr.io/${{ github.repository }}:${{ github.sha }}
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name == 'workflow_dispatch' && inputs.environment || 'staging' }}
-  cancel-in-progress: false
-
-# ----------------------------------------------------------------------
-# JOBS
-# ----------------------------------------------------------------------
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  build_and_deploy_backend:
+  validate-and-build:
+    name: "Validate, Build and Push Image"
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    outputs:
+      image_tag: ${{ github.sha }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up JDK 25
+        uses: actions/setup-java@v4
+        with:
+          java-version: '25'
+          distribution: 'corretto'
+          cache: maven
+
+      - name: Build application (without tests)
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          ./mvnw clean compile -DskipTests -B -q
+
+      - name: Run tests
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          ./mvnw test -B -q
+
+      - name: Build and Push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ env.IMAGE_NAME }}
+
+      - name: Security scan with Trivy
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.IMAGE_NAME }}
+          format: 'table'
+          exit-code: '0'
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          severity: 'HIGH,CRITICAL'
+
+  deploy-selfhosted:
+    name: "Deploy to Self-Hosted Runner"
+    needs: validate-and-build
+    if: github.ref == 'refs/heads/main'
     runs-on: [self-hosted, Linux, X64, conexao-de-sorte-backend-autenticacao]
-    timeout-minutes: 30
+    timeout-minutes: 15
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -78,7 +118,6 @@ jobs:
             "conexao-de-sorte-encryption-master-key"
             "conexao-de-sorte-server-port"
           )
-
           for secret_name in "${SECRETS_LIST[@]}"; do
             echo "Fetching secret: $secret_name"
             secret_value=$(az keyvault secret show --vault-name "${{ secrets.AZURE_KEYVAULT_NAME }}" --name "$secret_name" --query "value" -o tsv)
@@ -86,7 +125,6 @@ jobs:
               echo "::add-mask::$secret_value"
               env_var_name=$(echo "$secret_name" | tr '-' '_' | tr '[:lower:]' '[:upper:]')
               echo "${env_var_name}=${secret_value}" >> $GITHUB_ENV
-              echo "Secret '$secret_name' fetched and set as environment variable '${env_var_name}'."
             else
               echo "Warning: Secret '$secret_name' not found in Azure Key Vault."
             fi
@@ -95,67 +133,34 @@ jobs:
       - name: 🔐 Create Docker Secrets
         run: |
           echo "Creating Docker secrets..."
-          
-          # Remove secrets first to ensure idempotency
           docker secret rm REDIS_PASSWORD || true
           docker secret rm DATABASE_PASSWORD || true
           docker secret rm JWT_SECRET || true
           docker secret rm ENCRYPTION_MASTER_KEY || true
-          
-          # Create secrets from environment variables fetched from Key Vault
           printf "$CONEXAO_DE_SORTE_REDIS_PASSWORD" | docker secret create REDIS_PASSWORD -
           printf "$CONEXAO_DE_SORTE_DATABASE_PASSWORD" | docker secret create DATABASE_PASSWORD -
           printf "$CONEXAO_DE_SORTE_JWT_SECRET" | docker secret create JWT_SECRET -
           printf "$CONEXAO_DE_SORTE_ENCRYPTION_MASTER_KEY" | docker secret create ENCRYPTION_MASTER_KEY -
-          
           echo "Docker secrets created."
 
-      - name: Set up JDK 25
-        uses: actions/setup-java@v4
-        with:
-          java-version: '25'
-          distribution: 'corretto'
-          cache: maven
-
-      - name: Build application
-        shell: bash
+      - name: Deploy to Staging
+        env:
+          IMAGE_TAG: ${{ needs.validate-and-build.outputs.image_tag }}
+          STACK_NAME: conexao-autenticacao
         run: |
           set -Eeuo pipefail
-          ./mvnw clean compile -DskipTests -B -q
+          echo "Deploying image with tag: $IMAGE_TAG"
+          
+          # Pull the new image from GHCR
+          docker pull ${{ env.IMAGE_NAME }}
 
-      - name: Run tests
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          ./mvnw test -B -q
+          # Deploy using Docker Stack
+          docker stack deploy -c docker-compose.yml --with-registry-auth "${STACK_NAME}"
 
-      - name: Build Docker image
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          docker build -t autenticacao:${{ github.sha }} .
-
-      - name: Security scan with Trivy
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
-            aquasec/trivy:latest image --exit-code 0 --severity HIGH,CRITICAL \
-            autenticacao:${{ github.sha }} || true
-
-      - name: Deploy to staging
-        if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-
-          # Deploy via Docker Compose with external secrets
-          docker compose -f docker-compose.yml up -d --force-recreate
-
-          # Health check
-          timeout 180 bash -c 'until curl -f http://localhost:8081/actuator/health; do sleep 5; done'
-
-          # Validate through Traefik health monitor
+          echo "Waiting for deployment to stabilize..."
+          sleep 30
+          
+          # Health check through Traefik
           health_monitor_url="https://traefik.conexaodesorte.com.br/health/service/autenticacao"
           timeout_total=300
           interval=10
@@ -170,7 +175,8 @@ jobs:
 
             if [[ -n "$response" ]]; then
               status=$(echo "$response" | jq -r '.status // "unknown"' 2>/dev/null || echo "unknown")
-              status=${status//$'\n'/}
+              status=${status//$'
+'/}
               echo "📊 Status reportado: ${status:-indefinido}"
 
               if [[ "$status" == "healthy" ]]; then
