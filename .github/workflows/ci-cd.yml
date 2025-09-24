@@ -54,12 +54,6 @@ jobs:
           distribution: 'corretto'
           cache: maven
 
-      - name: Build application (without tests)
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          ./mvnw clean compile -DskipTests -B -q
-
       - name: Run tests
         shell: bash
         run: |
