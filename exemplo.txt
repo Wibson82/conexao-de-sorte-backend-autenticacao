@@ -1,4 +1,4 @@
-name: "🔐 Autenticacao Backend - CI/CD Pipeline"
+name: "🚀 Gateway Backend - CI/CD Pipeline"
 
 on:
   push:
@@ -14,8 +14,8 @@ concurrency:
 
 # Variáveis de ambiente global
 env:
-  SERVICE_NAME: autenticacao
-  STACK_NAME: conexao-autenticacao
+  SERVICE_NAME: gateway
+  STACK_NAME: conexao-gateway
   DOCKER_NETWORK_NAME: conexao-network-swarm
 
 permissions:
@@ -102,7 +102,7 @@ jobs:
 
   deploy-selfhosted:
     needs: validate-and-build
-    runs-on: [self-hosted, Linux, X64, conexao-de-sorte-backend-autenticacao]
+    runs-on: [self-hosted, Linux, X64, conexao-de-sorte-backend-gateway]
     timeout-minutes: 15
     if: github.ref == 'refs/heads/main'
     permissions:
@@ -129,10 +129,22 @@ jobs:
         run: |
           echo "Fetching secrets from Azure Key Vault using Azure CLI..."
           SECRETS_LIST=(
+            "conexao-de-sorte-database-r2dbc-url"
+            "conexao-de-sorte-database-username"
             "conexao-de-sorte-database-password"
-            "conexao-de-sorte-encryption-master-key"
-            "conexao-de-sorte-jwt-secret"
+            "conexao-de-sorte-redis-host"
+            "conexao-de-sorte-redis-port"
             "conexao-de-sorte-redis-password"
+            "conexao-de-sorte-redis-database"
+            "conexao-de-sorte-jwt-secret"
+            "conexao-de-sorte-jwt-issuer"
+            "conexao-de-sorte-jwt-jwks-uri"
+            "conexao-de-sorte-jwt-signing-key"
+            "conexao-de-sorte-jwt-verification-key"
+            "conexao-de-sorte-server-port"
+            "conexao-de-sorte-cors-allowed-origins"
+            "conexao-de-sorte-cors-allow-credentials"
+            "conexao-de-sorte-encryption-master-key"
           )
 
           for secret_name in "${SECRETS_LIST[@]}"; do
@@ -153,76 +165,34 @@ jobs:
       - name: 🔐 Create Docker Secrets
         if: ${{ env.CONEXAO_DE_SORTE_ENCRYPTION_MASTER_KEY != '' && env.CONEXAO_DE_SORTE_REDIS_PASSWORD != '' && env.CONEXAO_DE_SORTE_JWT_SECRET != '' }}
         run: |
-          set -euo pipefail
           echo "Creating Docker secrets..."
 
-          # Lista de secrets (nome do secret => variavel de ambiente que contém o valor)
-          declare -A SECRETS_MAP=(
-            [ENCRYPTION_MASTER_KEY]=CONEXAO_DE_SORTE_ENCRYPTION_MASTER_KEY
-            [REDIS_PASSWORD]=CONEXAO_DE_SORTE_REDIS_PASSWORD
-            [JWT_SECRET]=CONEXAO_DE_SORTE_JWT_SECRET
-            [DATABASE_PASSWORD]=CONEXAO_DE_SORTE_DATABASE_PASSWORD
-          )
+          # Verificar se secrets existem e forçar remoção se necessário
+          if docker secret ls --format "{{.Name}}" | grep -q "^ENCRYPTION_MASTER_KEY$"; then
+            echo "⚠️ Secret ENCRYPTION_MASTER_KEY já existe - removendo serviços dependentes primeiro..."
+            docker service ls --filter name="conexao-gateway" --format "{{.Name}}" | xargs -r docker service rm || true
+            sleep 5
+            docker secret rm ENCRYPTION_MASTER_KEY || true
+          fi
 
-          # Função para listar serviços que usam um secret
-          services_using_secret() {
-            local secret_name="$1"
-            local using=""
-            for svc in $(docker service ls --format '{{.Name}}'); do
-              # inspeciona a spec do serviço e procura SecretName igual ao secret
-              if docker service inspect "$svc" --format '{{json .Spec.TaskTemplate.ContainerSpec.Secrets}}' 2>/dev/null | grep -q "\"SecretName\":\"${secret_name}\""; then
-                using+="$svc\n"
-              fi
-            done
-            printf "%s" "$using"
-          }
+          if docker secret ls --format "{{.Name}}" | grep -q "^REDIS_PASSWORD$"; then
+            docker secret rm REDIS_PASSWORD || true
+          fi
 
-          for secret in "${!SECRETS_MAP[@]}"; do
-            envvar_name="${SECRETS_MAP[$secret]}"
-            secret_value="${!envvar_name:-}"
+          if docker secret ls --format "{{.Name}}" | grep -q "^JWT_SECRET$"; then
+            docker secret rm JWT_SECRET || true
+          fi
 
-            if [[ -z "$secret_value" ]]; then
-              echo "⚠️ Variável $envvar_name vazia — pulando criação de $secret"
-              continue
-            fi
+          # Create secrets from environment variables fetched from Key Vault
+          printf "$CONEXAO_DE_SORTE_ENCRYPTION_MASTER_KEY" | docker secret create ENCRYPTION_MASTER_KEY -
+          printf "$CONEXAO_DE_SORTE_REDIS_PASSWORD" | docker secret create REDIS_PASSWORD -
+          printf "$CONEXAO_DE_SORTE_JWT_SECRET" | docker secret create JWT_SECRET -
 
-            if docker secret ls --format '{{.Name}}' | grep -qx "$secret"; then
-              echo "ℹ️ Secret $secret já existe — verificando uso..."
-              in_use_by=$(services_using_secret "$secret" || true)
-              if [[ -n "$in_use_by" ]]; then
-                echo "⚠️ Secret '$secret' em uso pelos serviços:\n$in_use_by"
-                echo "ℹ️ Irei manter o secret existente para evitar interromper outros serviços. Pulando remoção/criação."
-                continue
-              else
-                echo "ℹ️ Secret '$secret' não está em uso — removendo para recriar"
-                docker secret rm "$secret" || echo "⚠️ Falha ao remover $secret — prosseguindo"
-              fi
-            fi
-
-            # Criar o secret; se já existir entre a checagem e a criação, tratar como não-fatal
-            if printf "%s" "$secret_value" | docker secret create "$secret" - 2>/tmp/docker_secret_create_err || true; then
-              if [[ -s /tmp/docker_secret_create_err ]]; then
-                if grep -q "AlreadyExists" /tmp/docker_secret_create_err || grep -q "already exists" /tmp/docker_secret_create_err; then
-                  echo "ℹ️ Secret $secret já existe (criação concorrente) — usando o existente"
-                else
-                  echo "⚠️ Aviso ao criar secret $secret:"
-                  sed -n '1,200p' /tmp/docker_secret_create_err
-                fi
-              else
-                echo "✅ Secret $secret criado com sucesso"
-              fi
-            else
-              echo "⚠️ Falha ao criar secret $secret — verifique logs"
-              sed -n '1,200p' /tmp/docker_secret_create_err || true
-            fi
-            rm -f /tmp/docker_secret_create_err || true
-          done
-
-          echo "Docker secrets process completed."
+          echo "Docker secrets created."
 
       - name: 🔍 Preparar ambiente de deploy
         run: |
-          echo "🔍 Preparando ambiente para deploy do Autenticacao..."
+          echo "🔍 Preparando ambiente para deploy do Gateway..."
 
           # Verificar arquivos necessários
           echo "🔍 Verificando arquivos necessários..."
@@ -235,7 +205,7 @@ jobs:
             fi
           done
 
-          # Verificar/criar diretórios específicos do Autenticacao
+          # Verificar/criar diretórios específicos do Gateway
           required_dirs=(
             "logs"
             "config"
@@ -262,16 +232,16 @@ jobs:
 
       - name: 🧹 Limpeza completa de recursos antigos
         run: |
-          echo "🧹 Iniciando limpeza completa de recursos do Autenticacao..."
+          echo "🧹 Iniciando limpeza completa de recursos do Gateway..."
 
           # Configurar variáveis de ambiente
           export COMPOSE_PROJECT_NAME="${STACK_NAME}"
-          SERVICE_NAME="${STACK_NAME}_autenticacao"
+          SERVICE_NAME="${STACK_NAME}_gateway"
 
           # 1. Parar e remover serviços Docker Swarm
           echo "🔍 Verificando serviços Docker Swarm existentes..."
           if docker service ls --filter name="${STACK_NAME}_" --format "{{.Name}}" | grep -q "${STACK_NAME}_"; then
-            echo "⚠️ Encontrados serviços existentes do Autenticacao - removendo..."
+            echo "⚠️ Encontrados serviços existentes do Gateway - removendo..."
 
             # Escalar para 0 réplicas primeiro (graceful shutdown)
             for service in $(docker service ls --filter name="${STACK_NAME}_" --format "{{.Name}}"); do
@@ -314,9 +284,9 @@ jobs:
 
           # 3. Limpeza de containers órfãos (se existirem)
           echo "🔍 Verificando containers órfãos..."
-          orphan_containers=$(docker ps -a --filter name="*autenticacao*" --format "{{.ID}} {{.Names}}" | grep -E "(conexao-autenticacao|autenticacao)" || true)
+          orphan_containers=$(docker ps -a --filter name="*gateway*" --format "{{.ID}} {{.Names}}" | grep -E "(conexao-gateway|gateway)" || true)
           if [[ -n "$orphan_containers" ]]; then
-            echo "⚠️ Encontrados containers órfãos do Autenticacao:"
+            echo "⚠️ Encontrados containers órfãos do Gateway:"
             echo "$orphan_containers"
             echo "$orphan_containers" | while read container_id container_name; do
               if [[ -n "$container_id" ]]; then
@@ -328,8 +298,8 @@ jobs:
           fi
 
           # 4. Limpeza de imagens antigas (opcional - manter apenas algumas versões)
-          echo "🔍 Limpeza de imagens antigas do Autenticacao..."
-          old_images=$(docker images ghcr.io/wibson82/conexao-de-sorte-backend-autenticacao --format "{{.ID}} {{.Repository}}:{{.Tag}}" | tail -n +4 || true)
+          echo "🔍 Limpeza de imagens antigas do Gateway..."
+          old_images=$(docker images ghcr.io/wibson82/conexao-de-sorte-backend-gateway/gateway --format "{{.ID}} {{.Repository}}:{{.Tag}}" | tail -n +4 || true)
           if [[ -n "$old_images" ]]; then
             echo "⚠️ Removendo imagens antigas (mantendo 3 mais recentes):"
             echo "$old_images" | while read image_id image_name; do
@@ -373,10 +343,10 @@ jobs:
 
       - name: 🚀 Deploy to Docker Swarm
         run: |
-          echo "🚀 Iniciando deploy do Autenticacao no Docker Swarm..."
+          echo "🚀 Iniciando deploy do Gateway no Docker Swarm..."
 
           # Verificar se temos os segredos mínimos necessários
-          if [[ -z "${CONEXAO_DE_SORTE_DATABASE_PASSWORD}" ]]; then
+          if [[ -z "${CONEXAO_DE_SORTE_DATABASE_R2DBC_URL}" ]] || [[ -z "${CONEXAO_DE_SORTE_DATABASE_USERNAME}" ]] || [[ -z "${CONEXAO_DE_SORTE_DATABASE_PASSWORD}" ]]; then
             echo "❌ Segredos do banco de dados não configurados"
             echo "⚠️ Verifique:"
             echo "  - Se os segredos existem no Azure Key Vault"
@@ -385,12 +355,12 @@ jobs:
             exit 1
           fi
 
-          if [[ -z "${CONEXAO_DE_SORTE_REDIS_PASSWORD}" ]]; then
+          if [[ -z "${CONEXAO_DE_SORTE_REDIS_HOST}" ]] || [[ -z "${CONEXAO_DE_SORTE_REDIS_PASSWORD}" ]]; then
             echo "❌ Segredos do Redis não configurados"
             exit 1
           fi
 
-          if [[ -z "${CONEXAO_DE_SORTE_JWT_SECRET}" ]] || [[ -z "${CONEXAO_DE_SORTE_ENCRYPTION_MASTER_KEY}" ]]; then
+          if [[ -z "${CONEXAO_DE_SORTE_JWT_SECRET}" ]] || [[ -z "${CONEXAO_DE_SORTE_JWT_ISSUER}" ]]; then
             echo "❌ Segredos JWT não configurados"
             exit 1
           fi
@@ -402,7 +372,7 @@ jobs:
 
           # Pull da imagem mais recente
           echo "📥 Fazendo pull da imagem mais recente..."
-          docker pull ghcr.io/wibson82/conexao-de-sorte-backend-autenticacao:latest || echo "⚠️ Falha no pull - usando imagem local"
+          docker pull ghcr.io/wibson82/conexao-de-sorte-backend-gateway/gateway:latest || echo "⚠️ Falha no pull - usando imagem local"
 
           # Deploy usando Docker Stack
           echo "🔄 Executando deploy stack..."
@@ -419,7 +389,7 @@ jobs:
           sleep 30
 
           # Verificar status dos serviços
-          echo "📊 Status dos serviços do Autenticacao:"
+          echo "📊 Status dos serviços do Gateway:"
           docker service ls --filter name="${STACK_NAME}_*" --format "table {{.Name}}\t{{.Replicas}}\t{{.Image}}\t{{.Ports}}"
 
           # Verificar tarefas dos serviços (para debug)
@@ -429,12 +399,12 @@ jobs:
             docker service ps "$service" --no-trunc --format "table {{.Name}}\t{{.Node}}\t{{.CurrentState}}\t{{.Error}}"
           done
 
-          # Health check específico do Autenticacao
+          # Health check específico do Gateway
           echo "🏥 Verificando saúde dos serviços..."
-          autenticacao_service="${STACK_NAME}_autenticacao"
+          gateway_service="${STACK_NAME}_gateway"
 
-          if docker service ls --filter name="$autenticacao_service" --format "{{.Name}}" | grep -q "$autenticacao_service"; then
-            echo "✅ Serviço $autenticacao_service encontrado"
+          if docker service ls --filter name="$gateway_service" --format "{{.Name}}" | grep -q "$gateway_service"; then
+            echo "✅ Serviço $gateway_service encontrado"
 
             # Aguardar serviço ficar saudável (timeout 180s)
             timeout=180
@@ -450,9 +420,9 @@ jobs:
                 break
               fi
 
-              replicas=$(docker service ls --filter name="$autenticacao_service" --format "{{.Replicas}}")
+              replicas=$(docker service ls --filter name="$gateway_service" --format "{{.Replicas}}")
               if [[ "$replicas" =~ ^[1-9][0-9]*/[1-9][0-9]*$ ]] && [[ "${replicas%/*}" == "${replicas#*/}" ]]; then
-                echo "✅ Serviço $autenticacao_service está saudável: $replicas"
+                echo "✅ Serviço $gateway_service está saudável: $replicas"
                 break
               else
                 echo "⏳ Aguardando... ($elapsed/${timeout}s) - Réplicas: $replicas"
@@ -460,7 +430,7 @@ jobs:
               fi
             done
           else
-            echo "❌ Serviço $autenticacao_service não encontrado"
+            echo "❌ Serviço $gateway_service não encontrado"
           fi
 
           echo "📊 Status final dos serviços:"
@@ -476,20 +446,20 @@ jobs:
           elapsed=0
 
           while [ $elapsed -lt $timeout ]; do
-            echo "🔎 Verificando containers do Autenticacao (${elapsed}/${timeout}s)..."
+            echo "🔎 Verificando containers do Gateway (${elapsed}/${timeout}s)..."
 
-            # Buscar container do autenticacao que está rodando
-            autenticacao_container=$(docker ps --filter "name=conexao-autenticacao" --filter "status=running" --format "{{.Names}}\t{{.Status}}" | head -1)
+            # Buscar container do gateway que está rodando
+            gateway_container=$(docker ps --filter "name=conexao-gateway" --filter "status=running" --format "{{.Names}}\t{{.Status}}" | head -1)
 
-            if [[ -n "$autenticacao_container" ]]; then
-              echo "📊 Container encontrado: $autenticacao_container"
+            if [[ -n "$gateway_container" ]]; then
+              echo "📊 Container encontrado: $gateway_container"
 
               # Verificar se tem health status
-              container_name=$(echo "$autenticacao_container" | cut -f1)
+              container_name=$(echo "$gateway_container" | cut -f1)
               health_status=$(docker inspect --format='{{.State.Health.Status}}' "$container_name" 2>/dev/null || echo "no-health-check")
 
               if [[ "$health_status" == "healthy" ]]; then
-                echo "✅ Container do Autenticacao está healthy no runner"
+                echo "✅ Container do Gateway está healthy no runner"
                 echo "🎯 Deploy confirmado com sucesso!"
                 exit 0
               elif [[ "$health_status" == "no-health-check" ]]; then
@@ -508,14 +478,14 @@ jobs:
                 echo "⚠️ Container health status: $health_status"
               fi
             else
-              echo "⚠️ Nenhum container do Autenticacao encontrado rodando"
+              echo "⚠️ Nenhum container do Gateway encontrado rodando"
             fi
 
             sleep "$interval"
             elapsed=$((elapsed + interval))
           done
 
-          echo "❌ Timeout: Autenticacao não está healthy após ${timeout}s"
+          echo "❌ Timeout: Gateway não está healthy após ${timeout}s"
           echo "📋 Listando containers atuais:"
           docker ps --filter "name=conexao" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
           exit 1
