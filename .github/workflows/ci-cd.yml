@@ -129,28 +129,16 @@ jobs:
         run: |
           echo "Fetching secrets from Azure Key Vault using Azure CLI..."
           SECRETS_LIST=(
-            "conexao-de-sorte-database-r2dbc-url"
-            "conexao-de-sorte-database-username"
             "conexao-de-sorte-database-password"
-            "conexao-de-sorte-redis-host"
-            "conexao-de-sorte-redis-port"
             "conexao-de-sorte-redis-password"
-            "conexao-de-sorte-redis-database"
             "conexao-de-sorte-jwt-secret"
-            "conexao-de-sorte-jwt-issuer"
-            "conexao-de-sorte-jwt-jwks-uri"
-            "conexao-de-sorte-jwt-signing-key"
-            "conexao-de-sorte-jwt-verification-key"
-            "conexao-de-sorte-server-port"
-            "conexao-de-sorte-cors-allowed-origins"
-            "conexao-de-sorte-cors-allow-credentials"
             "conexao-de-sorte-encryption-master-key"
           )
 
           for secret_name in "${SECRETS_LIST[@]}"; do
             echo "Fetching secret: $secret_name"
 
-            secret_value=$(az keyvault secret show --vault-name "${{ secrets.AZURE_KEYVAULT_NAME }}" --name "$secret_name" --query "value" -o tsv 2>/dev/null)
+            secret_value=$(az keyvault secret show --vault-name "${{ secrets.AZURE_KEYVAULT_NAME }}" --name "$secret_name" --query "value" -o tsv 2>/dev/null || true)
 
             if [[ -n "$secret_value" ]]; then
               echo "::add-mask::$secret_value"
@@ -351,22 +339,22 @@ jobs:
           echo "🚀 Iniciando deploy do Autenticacao no Docker Swarm..."
 
           # Verificar se temos os segredos mínimos necessários
-          if [[ -z "${CONEXAO_DE_SORTE_DATABASE_R2DBC_URL}" ]] || [[ -z "${CONEXAO_DE_SORTE_DATABASE_USERNAME}" ]] || [[ -z "${CONEXAO_DE_SORTE_DATABASE_PASSWORD}" ]]; then
-            echo "❌ Segredos do banco de dados não configurados"
+          if [[ -z "${CONEXAO_DE_SORTE_DATABASE_PASSWORD}" ]]; then
+            echo "❌ Segredo do banco de dados não configurado"
             echo "⚠️ Verifique:"
-            echo "  - Se os segredos existem no Azure Key Vault"
+            echo "  - Se o secret 'conexao-de-sorte-database-password' existe no Azure Key Vault"
             echo "  - Se os segredos estão configurados como GitHub Secrets"
             echo "  - Se a integração com Azure Key Vault está funcionando"
             exit 1
           fi
 
-          if [[ -z "${CONEXAO_DE_SORTE_REDIS_HOST}" ]] || [[ -z "${CONEXAO_DE_SORTE_REDIS_PASSWORD}" ]]; then
-            echo "❌ Segredos do Redis não configurados"
+          if [[ -z "${CONEXAO_DE_SORTE_REDIS_PASSWORD}" ]]; then
+            echo "❌ Segredo do Redis não configurado"
             exit 1
           fi
 
-          if [[ -z "${CONEXAO_DE_SORTE_JWT_SECRET}" ]] || [[ -z "${CONEXAO_DE_SORTE_JWT_ISSUER}" ]]; then
-            echo "❌ Segredos JWT não configurados"
+          if [[ -z "${CONEXAO_DE_SORTE_JWT_SECRET}" ]]; then
+            echo "❌ Segredo JWT não configurado"
             exit 1
           fi
 
