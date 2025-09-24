@@ -6,8 +6,42 @@ log() {
 }
 
 SECRETS_DIR=${SECRETS_DIR:-/run/secrets}
+
+# Função para ler secrets de arquivos
+read_secret() {
+    local secret_name="$1"
+    local secret_file="$SECRETS_DIR/$secret_name"
+
+    if [ -f "$secret_file" ]; then
+        cat "$secret_file"
+    else
+        echo ""
+    fi
+}
+
+# Ler secrets dos arquivos Docker e exportar como variáveis de ambiente
+log "🔐 Lendo secrets do Docker..."
+export conexao_de_sorte_database_r2dbc_url="r2dbc:mysql://conexao-mysql:3306"
+export conexao_de_sorte_database_username="conexao"
+export conexao_de_sorte_database_password=$(read_secret "DATABASE_PASSWORD")
+export conexao_de_sorte_redis_host="conexao-redis"
+export conexao_de_sorte_redis_port="6379"
+export conexao_de_sorte_redis_password=$(read_secret "REDIS_PASSWORD")
+export conexao_de_sorte_redis_database="3"
+export conexao_de_sorte_jwt_issuer="https://auth.conexaodesorte.com.br"
+export conexao_de_sorte_encryption_master_key=$(read_secret "ENCRYPTION_MASTER_KEY")
+
+# Para compatibilidade com o código existente
 R2DBC_FILE="$SECRETS_DIR/spring.r2dbc.url"
 JDBC_FILE="$SECRETS_DIR/spring.flyway.url"
+
+# Criar arquivos de URL se não existirem (para compatibilidade)
+if [ ! -f "$R2DBC_FILE" ]; then
+    echo "$conexao_de_sorte_database_r2dbc_url/conexao_sorte_auth?useSSL=true&allowPublicKeyRetrieval=false&serverTimezone=America/Sao_Paulo" > "$R2DBC_FILE"
+fi
+if [ ! -f "$JDBC_FILE" ]; then
+    echo "jdbc:mysql://conexao-mysql:3306/conexao_sorte_auth?useSSL=true&allowPublicKeyRetrieval=false&serverTimezone=America/Sao_Paulo" > "$JDBC_FILE"
+fi
 
 has_nc() {
   command -v nc >/dev/null 2>&1
