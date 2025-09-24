@@ -12,7 +12,7 @@ public class UserServiceClientImpl implements UserServiceClient {
 
     private final WebClient webClient;
 
-    public UserServiceClientImpl(@Value("${conexao-de-sorte-user-service-url}") String userServiceUrl, WebClient.Builder webClientBuilder) {
+    public UserServiceClientImpl(@Value("${conexao-de-sorte-auth-service-url}") String userServiceUrl, WebClient.Builder webClientBuilder) {
         this.webClient = webClientBuilder.baseUrl(userServiceUrl).build();
     }
 

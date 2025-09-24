@@ -164,11 +164,11 @@ app:
 
   rate-limiting:
     login:
-      requests-per-minute: ${conexao-de-sorte-rate-limit-login:10}
-      burst-capacity: ${conexao-de-sorte-rate-limit-login-burst:20}
+      requests-per-minute: ${conexao-de-sorte-api-rate-limit-key:10}
+      burst-capacity: ${conexao-de-sorte-api-rate-limit-key:20}
     validation:
-      requests-per-minute: ${conexao-de-sorte-rate-limit-validation:100}
-      burst-capacity: ${conexao-de-sorte-rate-limit-validation-burst:200}
+      requests-per-minute: ${conexao-de-sorte-api-rate-limit-key:100}
+      burst-capacity: ${conexao-de-sorte-api-rate-limit-key:200}
 
     # Azure Key Vault keys - using secure naming
     key-vault:
