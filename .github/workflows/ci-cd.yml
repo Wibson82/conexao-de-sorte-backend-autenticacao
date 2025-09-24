@@ -139,7 +139,17 @@ jobs:
           for secret_name in "${SECRETS_LIST[@]}"; do
             echo "Fetching secret: $secret_name"
 
-            secret_value=$(az keyvault secret show --vault-name "${{ secrets.AZURE_KEYVAULT_NAME }}" --name "$secret_name" --query "value" -o tsv 2>/dev/null)
+            # Capturar erro específico para debug
+            secret_value=$(az keyvault secret show --vault-name "${{ secrets.AZURE_KEYVAULT_NAME }}" --name "$secret_name" --query "value" -o tsv 2>&1)
+            exit_code=$?
+
+            if [[ $exit_code -ne 0 ]]; then
+              echo "❌ Erro ao buscar secret '$secret_name': $secret_value"
+              echo "🔍 Exit code: $exit_code"
+              echo "🔍 Key Vault: ${{ secrets.AZURE_KEYVAULT_NAME }}"
+              # Não falhar aqui, continuar com próximo secret
+              secret_value=""
+            fi
 
             if [[ -n "$secret_value" ]]; then
               echo "::add-mask::$secret_value"
