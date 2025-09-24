@@ -128,22 +128,11 @@ jobs:
         shell: bash
         run: |
           echo "Fetching secrets from Azure Key Vault using Azure CLI..."
+          # Secrets específicos para o microserviço Autenticação (baseado no docker-compose.yml)
           SECRETS_LIST=(
-            "conexao-de-sorte-database-r2dbc-url"
-            "conexao-de-sorte-database-username"
-            "conexao-de-sorte-database-password"
-            "conexao-de-sorte-redis-host"
-            "conexao-de-sorte-redis-port"
             "conexao-de-sorte-redis-password"
-            "conexao-de-sorte-redis-database"
+            "conexao-de-sorte-database-password"
             "conexao-de-sorte-jwt-secret"
-            "conexao-de-sorte-jwt-issuer"
-            "conexao-de-sorte-jwt-jwks-uri"
-            "conexao-de-sorte-jwt-signing-key"
-            "conexao-de-sorte-jwt-verification-key"
-            "conexao-de-sorte-server-port"
-            "conexao-de-sorte-cors-allowed-origins"
-            "conexao-de-sorte-cors-allow-credentials"
             "conexao-de-sorte-encryption-master-key"
           )
 
@@ -163,7 +152,7 @@ jobs:
           done
 
       - name: 🔐 Create Docker Secrets
-        if: ${{ env.CONEXAO_DE_SORTE_ENCRYPTION_MASTER_KEY != '' && env.CONEXAO_DE_SORTE_REDIS_PASSWORD != '' && env.CONEXAO_DE_SORTE_JWT_SECRET != '' }}
+        if: ${{ env.CONEXAO_DE_SORTE_ENCRYPTION_MASTER_KEY != '' && env.CONEXAO_DE_SORTE_REDIS_PASSWORD != '' && env.CONEXAO_DE_SORTE_JWT_SECRET != '' && env.CONEXAO_DE_SORTE_DATABASE_PASSWORD != '' }}
         run: |
           echo "Creating Docker secrets..."
 
@@ -183,10 +172,15 @@ jobs:
             docker secret rm JWT_SECRET || true
           fi
 
+          if docker secret ls --format "{{.Name}}" | grep -q "^DATABASE_PASSWORD$"; then
+            docker secret rm DATABASE_PASSWORD || true
+          fi
+
           # Create secrets from environment variables fetched from Key Vault
           printf "$CONEXAO_DE_SORTE_ENCRYPTION_MASTER_KEY" | docker secret create ENCRYPTION_MASTER_KEY -
           printf "$CONEXAO_DE_SORTE_REDIS_PASSWORD" | docker secret create REDIS_PASSWORD -
           printf "$CONEXAO_DE_SORTE_JWT_SECRET" | docker secret create JWT_SECRET -
+          printf "$CONEXAO_DE_SORTE_DATABASE_PASSWORD" | docker secret create DATABASE_PASSWORD -
 
           echo "Docker secrets created."
 
