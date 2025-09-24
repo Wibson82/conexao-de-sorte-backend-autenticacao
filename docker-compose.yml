@@ -49,8 +49,6 @@ services:
       - conexao-network-swarm
     volumes:
       - autenticacao-logs:/app/logs:rw
-    restart: on-failure:10
-
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8081/actuator/health"]
       interval: 30s
