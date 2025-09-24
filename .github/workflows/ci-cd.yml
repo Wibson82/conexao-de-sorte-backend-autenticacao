@@ -339,23 +339,26 @@ jobs:
         run: |
           echo "🚀 Iniciando deploy do Autenticacao no Docker Swarm..."
 
-          # Verificar se temos os segredos mínimos necessários
-          if [[ -z "${CONEXAO_DE_SORTE_DATABASE_R2DBC_URL}" ]] || [[ -z "${CONEXAO_DE_SORTE_DATABASE_USERNAME}" ]] || [[ -z "${CONEXAO_DE_SORTE_DATABASE_PASSWORD}" ]]; then
-            echo "❌ Segredos do banco de dados não configurados"
+          # Verificar se temos os segredos mínimos necessários para Autenticacao
+          if [[ -z "${CONEXAO_DE_SORTE_DATABASE_PASSWORD}" ]] || [[ -z "${CONEXAO_DE_SORTE_REDIS_PASSWORD}" ]] || [[ -z "${CONEXAO_DE_SORTE_JWT_SECRET}" ]] || [[ -z "${CONEXAO_DE_SORTE_ENCRYPTION_MASTER_KEY}" ]]; then
+            echo "❌ Segredos do Autenticacao não configurados"
             echo "⚠️ Verifique:"
-            echo "  - Se os segredos existem no Azure Key Vault"
+            echo "  - Se os 4 segredos específicos existem no Azure Key Vault"
             echo "  - Se os segredos estão configurados como GitHub Secrets"
             echo "  - Se a integração com Azure Key Vault está funcionando"
+            echo "🔍 Segredos necessários: database-password, redis-password, jwt-secret, encryption-master-key"
             exit 1
           fi
 
-          if [[ -z "${CONEXAO_DE_SORTE_REDIS_HOST}" ]] || [[ -z "${CONEXAO_DE_SORTE_REDIS_PASSWORD}" ]]; then
-            echo "❌ Segredos do Redis não configurados"
+          # Redis password é o único secret necessário (host é hardcoded no docker-compose.yml)
+          if [[ -z "${CONEXAO_DE_SORTE_REDIS_PASSWORD}" ]]; then
+            echo "❌ Secret do Redis não configurado"
             exit 1
           fi
 
-          if [[ -z "${CONEXAO_DE_SORTE_JWT_SECRET}" ]] || [[ -z "${CONEXAO_DE_SORTE_JWT_ISSUER}" ]]; then
-            echo "❌ Segredos JWT não configurados"
+          # JWT secret é o único necessário para este microserviço
+          if [[ -z "${CONEXAO_DE_SORTE_JWT_SECRET}" ]]; then
+            echo "❌ Secret JWT não configurado"
             exit 1
           fi
 
