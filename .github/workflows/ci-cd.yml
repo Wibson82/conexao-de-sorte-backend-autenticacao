@@ -128,7 +128,17 @@ jobs:
         shell: bash
         run: |
           echo "Fetching secrets from Azure Key Vault using Azure CLI..."
-          # Secrets específicos para o microserviço Autenticação (baseado no docker-compose.yml)
+          echo "🔍 Key Vault sendo usado: ${{ secrets.AZURE_KEYVAULT_NAME }}"
+
+          # Verificar se conseguimos acessar o Key Vault
+          echo "🔍 Testando acesso ao Key Vault..."
+          az keyvault list --query "[?name=='${{ secrets.AZURE_KEYVAULT_NAME }}'].{name:name,location:location}" || echo "⚠️ Erro ao acessar Key Vault"
+
+          # Debug: Listar alguns secrets disponíveis para comparação
+          echo "🔍 Listando primeiros 10 secrets disponíveis:"
+          az keyvault secret list --vault-name "${{ secrets.AZURE_KEYVAULT_NAME }}" --query "[0:10].name" -o tsv || echo "⚠️ Erro ao listar secrets"
+
+          # Secrets específicos para o microserviço Autenticação (nomes exatos do Azure Key Vault)
           SECRETS_LIST=(
             "conexao-de-sorte-redis-password"
             "conexao-de-sorte-database-password"
