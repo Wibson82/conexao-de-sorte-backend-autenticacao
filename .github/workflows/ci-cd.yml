@@ -217,6 +217,21 @@ jobs:
             echo "🔧 Criando rede overlay para Docker Swarm..."
             docker network create --driver overlay --attachable "${DOCKER_NETWORK_NAME}" || echo "⚠️ Rede já existe ou erro na criação"
           fi
+          # Verificar/criar volume para logs
+          echo "🔍 Verificando volume de logs..."
+          if docker volume ls | grep -q "autenticacao-logs"; then
+            echo "✅ Volume autenticacao-logs existe"
+          else
+            echo "🔧 Criando volume autenticacao-logs..."
+            docker volume create autenticacao-logs
+          fi
+          # Verificar imagem Docker local
+          echo "🔍 Verificando imagem Docker..."
+          if docker images | grep -q "conexao-de-sorte-backend-autenticacao"; then
+            echo "✅ Imagem local encontrada"
+          else
+            echo "⚠️ Imagem local não encontrada - será necessário build ou pull"
+          fi
 
       - name: 🧹 Limpeza completa de recursos antigos
         run: |
@@ -339,9 +354,21 @@ jobs:
           echo "✅ Todos os segredos necessários estão configurados"
           # Configurar variáveis de ambiente para o deploy
           export COMPOSE_PROJECT_NAME="${STACK_NAME}"
-          # Pull da imagem mais recente
-          echo "📥 Fazendo pull da imagem mais recente..."
-          docker pull ghcr.io/wibson82/conexao-de-sorte-backend-autenticacao:latest || echo "⚠️ Falha no pull - usando imagem local"
+          # Tentar pull da imagem mais recente
+          echo "📥 Tentando pull da imagem mais recente..."
+          if docker pull ghcr.io/wibson82/conexao-de-sorte-backend-autenticacao:latest; then
+            echo "✅ Pull da imagem realizado com sucesso"
+          else
+            echo "⚠️ Falha no pull - tentando build local..."
+            if [[ -f "Dockerfile" ]]; then
+              echo "🔨 Fazendo build da imagem localmente..."
+              docker build -t ghcr.io/wibson82/conexao-de-sorte-backend-autenticacao:latest .
+              echo "✅ Build local concluído"
+            else
+              echo "❌ Dockerfile não encontrado - não é possível fazer build"
+              exit 1
+            fi
+          fi
           # Deploy usando Docker Stack
           echo "🔄 Executando deploy stack..."
           docker stack deploy -c docker-compose.yml "${STACK_NAME}"
