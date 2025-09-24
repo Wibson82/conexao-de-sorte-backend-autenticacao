@@ -1,4 +1,4 @@
-name: "🚀 Autenticacao Backend - CI/CD Pipeline"
+name: "🔐 Autenticacao Backend - CI/CD Pipeline"
 
 on:
   push:
@@ -129,10 +129,10 @@ jobs:
         run: |
           echo "Fetching secrets from Azure Key Vault using Azure CLI..."
           SECRETS_LIST=(
-            "conexao-de-sorte-redis-password"
             "conexao-de-sorte-database-password"
-            "conexao-de-sorte-jwt-secret"
             "conexao-de-sorte-encryption-master-key"
+            "conexao-de-sorte-jwt-secret"
+            "conexao-de-sorte-redis-password"
           )
 
           for secret_name in "${SECRETS_LIST[@]}"; do
@@ -151,7 +151,7 @@ jobs:
           done
 
       - name: 🔐 Create Docker Secrets
-        if: ${{ env.CONEXAO_DE_SORTE_ENCRYPTION_MASTER_KEY != '' && env.CONEXAO_DE_SORTE_REDIS_PASSWORD != '' && env.CONEXAO_DE_SORTE_JWT_SECRET != '' && env.CONEXAO_DE_SORTE_DATABASE_PASSWORD != '' }}
+        if: ${{ env.CONEXAO_DE_SORTE_ENCRYPTION_MASTER_KEY != '' && env.CONEXAO_DE_SORTE_REDIS_PASSWORD != '' && env.CONEXAO_DE_SORTE_JWT_SECRET != '' }}
         run: |
           echo "Creating Docker secrets..."
 
@@ -338,26 +338,23 @@ jobs:
         run: |
           echo "🚀 Iniciando deploy do Autenticacao no Docker Swarm..."
 
-          # Verificar se temos os segredos mínimos necessários para Autenticacao
-          if [[ -z "${CONEXAO_DE_SORTE_DATABASE_PASSWORD}" ]] || [[ -z "${CONEXAO_DE_SORTE_REDIS_PASSWORD}" ]] || [[ -z "${CONEXAO_DE_SORTE_JWT_SECRET}" ]] || [[ -z "${CONEXAO_DE_SORTE_ENCRYPTION_MASTER_KEY}" ]]; then
-            echo "❌ Segredos do Autenticacao não configurados"
+          # Verificar se temos os segredos mínimos necessários
+          if [[ -z "${CONEXAO_DE_SORTE_DATABASE_PASSWORD}" ]]; then
+            echo "❌ Segredos do banco de dados não configurados"
             echo "⚠️ Verifique:"
-            echo "  - Se os 4 segredos específicos existem no Azure Key Vault"
+            echo "  - Se os segredos existem no Azure Key Vault"
             echo "  - Se os segredos estão configurados como GitHub Secrets"
             echo "  - Se a integração com Azure Key Vault está funcionando"
-            echo "🔍 Segredos necessários: database-password, redis-password, jwt-secret, encryption-master-key"
             exit 1
           fi
 
-          # Redis password é o único secret necessário (host é hardcoded no docker-compose.yml)
           if [[ -z "${CONEXAO_DE_SORTE_REDIS_PASSWORD}" ]]; then
-            echo "❌ Secret do Redis não configurado"
+            echo "❌ Segredos do Redis não configurados"
             exit 1
           fi
 
-          # JWT secret é o único necessário para este microserviço
-          if [[ -z "${CONEXAO_DE_SORTE_JWT_SECRET}" ]]; then
-            echo "❌ Secret JWT não configurado"
+          if [[ -z "${CONEXAO_DE_SORTE_JWT_SECRET}" ]] || [[ -z "${CONEXAO_DE_SORTE_ENCRYPTION_MASTER_KEY}" ]]; then
+            echo "❌ Segredos JWT não configurados"
             exit 1
           fi
 
