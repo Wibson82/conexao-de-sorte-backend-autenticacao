@@ -153,28 +153,34 @@ jobs:
         if: ${{ env.CONEXAO_DE_SORTE_ENCRYPTION_MASTER_KEY != '' && env.CONEXAO_DE_SORTE_REDIS_PASSWORD != '' && env.CONEXAO_DE_SORTE_JWT_SECRET != '' }}
         run: |
           echo "Creating Docker secrets..."
-          # Verificar se secrets existem e forçar remoção se necessário
-          if docker secret ls --format "{{.Name}}" | grep -q "^ENCRYPTION_MASTER_KEY$"; then
-            echo "⚠️ Secret ENCRYPTION_MASTER_KEY já existe - removendo serviços dependentes primeiro..."
+
+          # Função para criar secret apenas se não existir
+          create_secret_if_not_exists() {
+            local secret_name="$1"
+            local secret_value="$2"
+
+            if docker secret ls --format "{{.Name}}" | grep -q "^${secret_name}$"; then
+              echo "ℹ️ Secret ${secret_name} já existe - reutilizando"
+            else
+              printf "$secret_value" | docker secret create "$secret_name" -
+              echo "✅ Secret ${secret_name} criado"
+            fi
+          }
+
+          # Remover apenas serviços específicos do autenticacao se necessário
+          if docker service ls --filter name="conexao-autenticacao" --format "{{.Name}}" | grep -q "conexao-autenticacao"; then
+            echo "⚠️ Removendo serviços do autenticacao para atualização..."
             docker service ls --filter name="conexao-autenticacao" --format "{{.Name}}" | xargs -r docker service rm || true
             sleep 5
-            docker secret rm ENCRYPTION_MASTER_KEY || true
           fi
-          if docker secret ls --format "{{.Name}}" | grep -q "^REDIS_PASSWORD$"; then
-            docker secret rm REDIS_PASSWORD || true
-          fi
-          if docker secret ls --format "{{.Name}}" | grep -q "^JWT_SECRET$"; then
-            docker secret rm JWT_SECRET || true
-          fi
-          if docker secret ls --format "{{.Name}}" | grep -q "^DATABASE_PASSWORD$"; then
-            docker secret rm DATABASE_PASSWORD || true
-          fi
-          # Create secrets from environment variables fetched from Key Vault
-          printf "$CONEXAO_DE_SORTE_ENCRYPTION_MASTER_KEY" | docker secret create ENCRYPTION_MASTER_KEY -
-          printf "$CONEXAO_DE_SORTE_REDIS_PASSWORD" | docker secret create REDIS_PASSWORD -
-          printf "$CONEXAO_DE_SORTE_JWT_SECRET" | docker secret create JWT_SECRET -
-          printf "$CONEXAO_DE_SORTE_DATABASE_PASSWORD" | docker secret create DATABASE_PASSWORD -
-          echo "Docker secrets created."
+
+          # Criar secrets apenas se não existirem (evita conflitos com outros serviços)
+          create_secret_if_not_exists "ENCRYPTION_MASTER_KEY" "$CONEXAO_DE_SORTE_ENCRYPTION_MASTER_KEY"
+          create_secret_if_not_exists "REDIS_PASSWORD" "$CONEXAO_DE_SORTE_REDIS_PASSWORD"
+          create_secret_if_not_exists "JWT_SECRET" "$CONEXAO_DE_SORTE_JWT_SECRET"
+          create_secret_if_not_exists "DATABASE_PASSWORD" "$CONEXAO_DE_SORTE_DATABASE_PASSWORD"
+
+          echo "Docker secrets process completed."
 
       - name: 🔍 Preparar ambiente de deploy
         run: |
