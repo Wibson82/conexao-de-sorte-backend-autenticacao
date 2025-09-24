@@ -126,15 +126,8 @@ jobs:
       - name: Get secrets from Azure Key Vault (via AZ CLI)
         if: ${{ needs.validate-and-build.outputs.has_keyvault == 'true' }}
         shell: bash
-        continue-on-error: true
         run: |
           echo "Fetching secrets from Azure Key Vault using Azure CLI..."
-          echo "🔍 Debug: Key Vault Name: ${{ secrets.AZURE_KEYVAULT_NAME }}"
-
-          # Desabilitar exit-on-error temporariamente para debug
-          set +e
-
-          # Secrets específicos para o microserviço Autenticação
           SECRETS_LIST=(
             "conexao-de-sorte-redis-password"
             "conexao-de-sorte-database-password"
@@ -145,17 +138,7 @@ jobs:
           for secret_name in "${SECRETS_LIST[@]}"; do
             echo "Fetching secret: $secret_name"
 
-            # Capturar erro específico para debug
-            secret_value=$(az keyvault secret show --vault-name "${{ secrets.AZURE_KEYVAULT_NAME }}" --name "$secret_name" --query "value" -o tsv 2>&1)
-            exit_code=$?
-
-            if [[ $exit_code -ne 0 ]]; then
-              echo "❌ Erro ao buscar secret '$secret_name': $secret_value"
-              echo "🔍 Exit code: $exit_code"
-              echo "🔍 Key Vault: ${{ secrets.AZURE_KEYVAULT_NAME }}"
-              # Não falhar aqui, continuar com próximo secret
-              secret_value=""
-            fi
+            secret_value=$(az keyvault secret show --vault-name "${{ secrets.AZURE_KEYVAULT_NAME }}" --name "$secret_name" --query "value" -o tsv 2>/dev/null)
 
             if [[ -n "$secret_value" ]]; then
               echo "::add-mask::$secret_value"
@@ -166,11 +149,6 @@ jobs:
               echo "Warning: Secret '$secret_name' not found in Azure Key Vault."
             fi
           done
-
-          # Reabilitar exit-on-error
-          set -e
-
-          echo "🔍 Debug: Finalizado busca de secrets"
 
       - name: 🔐 Create Docker Secrets
         if: ${{ env.CONEXAO_DE_SORTE_ENCRYPTION_MASTER_KEY != '' && env.CONEXAO_DE_SORTE_REDIS_PASSWORD != '' && env.CONEXAO_DE_SORTE_JWT_SECRET != '' && env.CONEXAO_DE_SORTE_DATABASE_PASSWORD != '' }}
