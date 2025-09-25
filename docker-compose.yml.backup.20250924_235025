@@ -1,0 +1,180 @@
+# ============================================================================
+# DOCKER COMPOSE - PRODUÇÃO - MICROSERVIÇO AUTENTICAÇÃO
+# ============================================================================
+# Configuração Docker Swarm completa para produção
+# Padrão baseado no Gateway com configurações específicas do microserviço
+# ============================================================================
+
+services:
+  autenticacao:
+    image: ghcr.io/wibson82/conexao-de-sorte-backend-autenticacao:${IMAGE_TAG:-latest}
+    environment:
+      SPRING_PROFILES_ACTIVE: "prod"
+      SERVER_PORT: "8081"
+      REDIS_HOST: "conexao-redis"
+      REDIS_PORT: "6379"
+      REDIS_DATABASE: "3"
+      AUTENTICACAO_LOG_LEVEL: "INFO"
+      # Database Configuration
+      DATABASE_HOST: "conexao-mysql"
+      DATABASE_PORT: "3306"
+      DATABASE_NAME: "conexao_de_sorte"
+      DATABASE_USERNAME: "conexao"
+      # Secrets via Docker Secrets
+      REDIS_PASSWORD_FILE: "/run/secrets/REDIS_PASSWORD"
+      DATABASE_PASSWORD_FILE: "/run/secrets/DATABASE_PASSWORD"
+      JWT_SECRET_FILE: "/run/secrets/JWT_SECRET"
+      ENCRYPTION_MASTER_KEY_FILE: "/run/secrets/ENCRYPTION_MASTER_KEY"
+      # Tracing Configuration (desabilitar até Jaeger estar pronto)
+      MANAGEMENT_TRACING_ENABLED: "false"
+      MANAGEMENT_ZIPKIN_TRACING_ENDPOINT: ""
+      JAVA_OPTS: "-XX:+UnlockExperimentalVMOptions --enable-native-access=ALL-UNNAMED"
+      # Feature Flags
+      FEATURE_AUTH_MICROSERVICE: "${FEATURE_AUTH_MICROSERVICE:-true}"
+      FEATURE_JWKS_ROTATION: "${FEATURE_JWKS_ROTATION:-true}"
+      FEATURE_AUDIT_LOGGING: "${FEATURE_AUDIT_LOGGING:-true}"
+      FEATURE_METRICS_COLLECTION: "${FEATURE_METRICS_COLLECTION:-true}"
+      # Rate Limiting
+      RATE_LIMIT_LOGIN: "${RATE_LIMIT_LOGIN:-10}"
+      RATE_LIMIT_LOGIN_BURST: "${RATE_LIMIT_LOGIN_BURST:-20}"
+      RATE_LIMIT_VALIDATION: "${RATE_LIMIT_VALIDATION:-100}"
+      RATE_LIMIT_VALIDATION_BURST: "${RATE_LIMIT_VALIDATION_BURST:-200}"
+    secrets:
+      - REDIS_PASSWORD
+      - DATABASE_PASSWORD
+      - JWT_SECRET
+      - ENCRYPTION_MASTER_KEY
+    user: "1000:1000"
+    networks:
+      - conexao-network-swarm
+    volumes:
+      - autenticacao-logs:/app/logs:rw
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+      update_config:
+        parallelism: 1
+        delay: 10s
+        failure_action: rollback
+        monitor: 60s
+        max_failure_ratio: 0.3
+      rollback_config:
+        parallelism: 1
+        delay: 5s
+        failure_action: pause
+        monitor: 60s
+        max_failure_ratio: 0.3
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 512M
+
+    # ==========================================================================
+    # 🏷️ TRAEFIK LABELS - MICROSERVIÇO AUTENTICAÇÃO
+    # ==========================================================================
+    labels:
+      # Habilitar Traefik para este serviço
+      - "traefik.enable=true"
+      - "traefik.docker.network=conexao-network-swarm"
+
+      # Configuração do serviço Autenticação
+      - "traefik.http.services.autenticacao-service.loadbalancer.server.port=8081"
+      - "traefik.http.services.autenticacao-service.loadbalancer.healthcheck.path=/actuator/health"
+      - "traefik.http.services.autenticacao-service.loadbalancer.healthcheck.interval=30s"
+
+      # Roteamento interno do microserviço (via Gateway)
+      - "traefik.http.routers.autenticacao-internal.rule=Host(`api.conexaodesorte.com.br`) && PathPrefix(`/rest/autenticacao`)"
+      - "traefik.http.routers.autenticacao-internal.entrypoints=websecure"
+      - "traefik.http.routers.autenticacao-internal.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.autenticacao-internal.service=autenticacao-service"
+      - "traefik.http.routers.autenticacao-internal.middlewares=autenticacao-stripprefix"
+
+      # Middleware para remover prefixo /rest/autenticacao
+      - "traefik.http.middlewares.autenticacao-stripprefix.stripprefix.prefixes=/rest/autenticacao"
+
+      # Health check individual do Autenticação
+      - "traefik.http.routers.autenticacao-health.rule=Host(`traefik.conexaodesorte.com.br`) && PathPrefix(`/health/service/autenticacao`)"
+      - "traefik.http.routers.autenticacao-health.entrypoints=websecure"
+      - "traefik.http.routers.autenticacao-health.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.autenticacao-health.service=autenticacao-service"
+      - "traefik.http.routers.autenticacao-health.middlewares=autenticacao-health-rewrite"
+
+      # Middleware para reescrever path do health check
+      - "traefik.http.middlewares.autenticacao-health-rewrite.replacepath.path=/actuator/health"
+
+      # Metadata do serviço
+      - "org.opencontainers.image.title=Conexão de Sorte - Autenticação"
+      - "org.opencontainers.image.description=Microserviço de autenticação e autorização"
+      - "org.opencontainers.image.version=1.0.0"
+      - "microservice.type=authentication"
+      - "microservice.category=security"
+
+networks:
+  conexao-network-swarm:
+    external: true
+
+# ============================================================================
+# 🔐 SECRETS EXTERNOS (Azure Key Vault)
+# ============================================================================
+secrets:
+  REDIS_PASSWORD:
+    external: true
+    name: REDIS_PASSWORD
+  DATABASE_PASSWORD:
+    external: true
+    name: DATABASE_PASSWORD
+  JWT_SECRET:
+    external: true
+    name: JWT_SECRET
+  ENCRYPTION_MASTER_KEY:
+    external: true
+    name: ENCRYPTION_MASTER_KEY
+
+# ============================================================================
+# 📦 VOLUMES EXTERNOS
+# ============================================================================
+volumes:
+  autenticacao-logs:
+    external: true
+    name: autenticacao-logs
+
+# ============================================================================
+# 📋 NOTAS DE CONFIGURAÇÃO - MICROSERVIÇO AUTENTICAÇÃO
+# ============================================================================
+#
+# 🔧 CONFIGURAÇÕES DOCKER SWARM:
+#   - Configurado para 1 réplica com restart automático
+#   - Placement constraint: worker nodes apenas
+#   - Health checks configurados para /actuator/health
+#   - Recursos: 512M reservados, 1G limite
+#
+# 🌐 ROTEAMENTO TRAEFIK:
+#   - Rota interna: /rest/autenticacao/* -> porta 8081
+#   - Health check: /health/service/autenticacao
+#   - SSL/TLS via LetsEncrypt
+#
+# 🔐 SEGURANÇA:
+#   - Secrets gerenciados via Docker Swarm
+#   - Integração com Azure Key Vault
+#   - Usuário não-root: 1000:1000
+#
+# 📊 MONITORAMENTO:
+#   - Logs persistidos em volume externo
+#   - Health checks com timeout de 10s
+#   - Métricas via /actuator/metrics
+#
+# ============================================================================

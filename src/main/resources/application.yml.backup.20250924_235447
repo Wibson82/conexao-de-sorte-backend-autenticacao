@@ -1,0 +1,330 @@
+spring:
+  config:
+    import:
+      - optional:configtree:/run/secrets/
+      - optional:file:./config/
+  jackson:
+    time-zone: America/Sao_Paulo
+    locale: pt_BR
+  application:
+    name: conexao-de-sorte-auth
+
+  profiles:
+    default: prod
+
+  main:
+    allow-bean-definition-overriding: true
+
+  # Cache reativo (Redis) - Configuração crítica para autenticação
+  data:
+    redis:
+      host: ${conexao-de-sorte-redis-host:conexao-redis}
+      port: ${conexao-de-sorte-redis-port:6379}
+      password: ${conexao-de-sorte-redis-password:}
+      database: ${conexao-de-sorte-redis-database:1}
+      timeout: 3000ms
+      connect-timeout: 10000ms
+      lettuce:
+        pool:
+          enabled: true
+          max-active: 30
+          max-idle: 15
+          min-idle: 8
+          max-wait: 5000ms
+          time-between-eviction-runs: 30s
+        cluster:
+          refresh:
+            adaptive: true
+            period: 60s
+
+  # Cache Configuration - Segurança crítica
+  cache:
+    type: redis
+    cache-names: rsa-private-key, rsa-public-key, key-id, valid-tokens, jwks
+    redis:
+      time-to-live: PT30M  # TTL padrão para segurança
+      cache-null-values: false
+      key-prefix: "auth:"
+      use-key-prefix: true
+
+  # Azure Key Vault (configuração base)
+  cloud:
+    azure:
+      keyvault:
+        secret:
+          enabled: ${AZURE_KEYVAULT_ENABLED:false}
+
+  # Flyway para migrations
+  flyway:
+    enabled: true
+    # createDatabaseIfNotExist=true permite criar o banco automaticamente
+    url: ${conexao-de-sorte-database-jdbc-url}/conexao_sorte_auth?useSSL=true&allowPublicKeyRetrieval=false&serverTimezone=America/Sao_Paulo&createDatabaseIfNotExist=true
+    user: ${conexao-de-sorte-database-username}
+    password: ${conexao-de-sorte-database-password}
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    validate-on-migrate: true
+    clean-disabled: true
+
+  # Configurações de segurança
+  security:
+    oauth2:
+      resource-server:
+        jwt:
+          issuer-uri: ${conexao-de-sorte-jwt-issuer}
+
+  r2dbc:
+    # Configuração com fallbacks seguros para desenvolvimento/teste
+    url: ${conexao-de-sorte-database-r2dbc-url:r2dbc:mysql://conexao-mysql:3306}/conexao_sorte_auth?useSSL=true&allowPublicKeyRetrieval=false&serverTimezone=America/Sao_Paulo
+    username: ${conexao-de-sorte-database-username:conexao_user}
+    password: ${conexao-de-sorte-database-password:conexao_password}
+    pool:
+      initial-size: 1  # Reduzido para startup mais rápido
+      max-size: 10     # Reduzido para startup mais rápido
+      max-idle-time: 10m
+      max-acquire-time: 15s    # Reduzido para evitar travamentos
+      max-create-connection-time: 10s  # Reduzido para evitar travamentos
+      max-life-time: 30m
+      validation-query: SELECT 1
+
+  # Segunda configuração de flyway removida (duplicada)
+
+# Configuração do serviço de usuário movida para variável conexao-de-sorte-user-service-url
+
+# Server Configuration (aplicável a todos os perfis)
+server:
+  port: ${SERVER_PORT:8081}
+  shutdown: graceful
+
+  # SSL/TLS Configuration
+  ssl:
+    enabled: false  # TLS termina no Traefik (ACME) - forçar false
+    key-store: ${conexao-de-sorte-ssl-keystore-path}
+    key-store-password: ${conexao-de-sorte-redis-password:senha_teste}
+    key-store-type: PKCS12
+
+  netty:
+    connection-timeout: 20s
+    h2c-max-content-length: 0B
+
+  error:
+    include-message: never
+    include-binding-errors: never
+    include-stacktrace: never
+    include-exception: false
+
+# Management and Health Configuration
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+      base-path: /actuator
+      cors:
+        allowed-origins: "*"
+        allowed-methods: GET
+
+  endpoint:
+    health:
+      show-details: when-authorized
+      show-components: when-authorized
+      probes:
+        enabled: true
+
+  health:
+    readinessstate:
+      enabled: true
+    livenessstate:
+      enabled: true
+
+  metrics:
+    distribution:
+      percentiles:
+        "[http.server.requests]": 0.5,0.95,0.99
+
+  prometheus:
+    metrics:
+      export:
+        enabled: true
+        step: 60s
+
+  tracing:
+    enabled: true
+    sampling:
+      probability: ${conexao-de-sorte-tracing-probability}
+
+# Custom Application Properties
+app:
+  # JWT Configuration with secure secret management
+  jwt:
+    # Duracao dos tokens (em segundos)
+    access-token-validity: ${conexao-de-sorte-jwt-access-token-validity:3600}
+    refresh-token-validity: ${conexao-de-sorte-jwt-refresh-token-validity:86400}
+    cleanup-interval: ${conexao-de-sorte-jwt-cleanup-interval:3600}
+
+  rate-limiting:
+    login:
+      requests-per-minute: ${conexao-de-sorte-api-rate-limit-key:10}
+      burst-capacity: ${conexao-de-sorte-api-rate-limit-key:20}
+    validation:
+      requests-per-minute: ${conexao-de-sorte-api-rate-limit-key:100}
+      burst-capacity: ${conexao-de-sorte-api-rate-limit-key:200}
+
+    # Azure Key Vault keys - using secure naming
+    key-vault:
+      enabled: ${conexao-de-sorte-jwt-keyvault-enabled}
+      private-key-name: ${conexao-de-sorte-jwt-private-key-name}
+      public-key-name: ${conexao-de-sorte-jwt-public-key-name}
+      key-id-name: ${conexao-de-sorte-jwt-key-id-name}
+      secret-name: ${conexao-de-sorte-jwt-secret-name}
+
+    # Configuração segura - apenas Azure Key Vault, sem fallbacks
+    # Removido fallback inseguro para forçar uso exclusivo do Key Vault
+
+    # Issuer e Audience
+    issuer: ${conexao-de-sorte-jwt-issuer}
+    audience: ${conexao-de-sorte-jwt-audience}
+
+    # JWKS cache
+    jwks-cache-duration: ${conexao-de-sorte-jwt-jwks-cache-duration}
+
+    # Security settings
+    algorithm: ${conexao-de-sorte-jwt-algorithm}
+    rotation:
+      enabled: ${conexao-de-sorte-jwt-rotation-enabled}
+      schedule: ${conexao-de-sorte-jwt-rotation-schedule}
+
+  # CORS Configuration
+  cors:
+    allowed-origins: ${conexao-de-sorte-cors-allowed-origins}
+    allowed-methods: GET,POST,PUT,DELETE,OPTIONS
+    allowed-headers: "*"
+    allow-credentials: ${conexao-de-sorte-cors-allow-credentials}
+    max-age: 3600
+
+  # Rate Limiting
+  rate-limit:
+    enabled: true
+    default-requests-per-minute: 60
+    endpoints:
+      "/auth/token":
+        requests-per-minute: 10
+        burst-capacity: 20
+      "/auth/refresh":
+        requests-per-minute: 30
+        burst-capacity: 50
+      "/auth/introspect":
+        requests-per-minute: 100
+        burst-capacity: 200
+
+  # Security Headers
+  security:
+    headers:
+      content-security-policy: >-
+        "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline';
+        img-src 'self' data: https:; connect-src 'self'"
+      x-content-type-options: nosniff
+      x-frame-options: DENY
+      x-xss-protection: "1; mode=block"
+      strict-transport-security: "max-age=31536000; includeSubDomains"
+
+  # Feature Flags
+  features:
+    auth-microservice: ${conexao-de-sorte-feature-auth-ms}
+    jwks-rotation: ${conexao-de-sorte-feature-jwks-rotation}
+    audit-logging: ${conexao-de-sorte-feature-audit-logging}
+    metrics-collection: ${conexao-de-sorte-feature-metrics}
+
+# Logging Configuration
+logging:
+  level:
+    "[br.tec.facilitaservicos.autenticacao]": ${conexao-de-sorte-log-level:INFO}
+    "[org.springframework.security]": ${conexao-de-sorte-security-log-level:WARN}
+    "[org.springframework.r2dbc]": ${conexao-de-sorte-r2dbc-log-level:WARN}
+    "[io.r2dbc.mysql]": ${conexao-de-sorte-mysql-log-level:WARN}
+    "[com.azure]": ${conexao-de-sorte-azure-log-level:WARN}
+
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level [%X{traceId:-},%X{spanId:-}] %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level [%X{traceId:-},%X{spanId:-}] %logger{36} - %msg%n"
+
+  file:
+    name: ${conexao-de-sorte-log-file:/app/logs/autenticacao.log}
+
+# OpenAPI Documentation
+springdoc:
+  api-docs:
+    enabled: true
+    path: /v3/api-docs
+  swagger-ui:
+    enabled: true
+    path: /swagger-ui.html
+    operationsSorter: method
+    tagsSorter: alpha
+  show-actuator: false
+
+# Resilience4j Configuration
+resilience4j:
+  ratelimiter:
+    instances:
+      auth-service:
+        limit-for-period: 10
+        limit-refresh-period: 1m
+        timeout-duration: 3s
+
+  circuitbreaker:
+    instances:
+      azure-keyvault:
+        sliding-window-size: 100
+        minimum-number-of-calls: 10
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 30s
+        permitted-number-of-calls-in-half-open-state: 5
+
+---
+# Production Profile
+spring:
+  config:
+    activate:
+      on-profile: prod
+
+  # Habilitar Key Vault em produção
+  cloud:
+    azure:
+      keyvault:
+        secret:
+          enabled: ${conexao-de-sorte-azure-keyvault-enabled}
+
+# Configurações específicas de produção (sobrescrevendo padrões)
+server:
+  ssl:
+    enabled: false  # TLS termina no Traefik (ACME) - forçar false
+
+app:
+  jwt:
+    key-vault:
+      enabled: ${conexao-de-sorte-jwt-keyvault-enabled}
+  features:
+    auth-microservice: true
+    jwks-rotation: true
+    audit-logging: true
+    metrics-collection: true
+  rate-limit:
+    default-requests-per-minute: 30
+    endpoints:
+      "/auth/token":
+        requests-per-minute: 5
+      "/auth/refresh":
+        requests-per-minute: 15
+
+logging:
+  level:
+    "[br.tec.facilitaservicos.autenticacao]": INFO
+    root: WARN
+    "[org.springframework.security]": WARN
+    "[org.springframework.r2dbc]": WARN
+    "[io.r2dbc.mysql]": WARN
+    "[com.azure]": WARN
+
+  file:
+    name: /var/log/autenticacao/application.log
