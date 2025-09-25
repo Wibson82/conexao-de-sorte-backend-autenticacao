@@ -19,7 +19,7 @@ env:
   SERVICE_NAME: autenticacao
   STACK_NAME: conexao-autenticacao
   DOCKER_NETWORK_NAME: conexao-network-swarm
-  JAVA_VERSION: '21'
+  JAVA_VERSION: '25'
   MAVEN_OPTS: '-Xmx1024m -XX:MaxMetaspaceSize=256m'
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}/autenticacao
