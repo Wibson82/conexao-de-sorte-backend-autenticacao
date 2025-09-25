@@ -19,9 +19,9 @@ spring:
   data:
     redis:
       host: ${conexao-de-sorte-redis-host:conexao-redis}
-      port: ${conexao-de-sorte-redis-port}
-      password: ${conexao-de-sorte-redis-password:senha_teste}
-      database: ${conexao-de-sorte-redis-database}
+      port: ${conexao-de-sorte-redis-port:6379}
+      password: ${conexao-de-sorte-redis-password:}
+      database: ${conexao-de-sorte-redis-database:1}
       timeout: 3000ms
       connect-timeout: 10000ms
       lettuce:
@@ -74,10 +74,10 @@ spring:
           issuer-uri: ${conexao-de-sorte-jwt-issuer}
 
   r2dbc:
-    # Configuração segura - apenas Azure Key Vault, sem fallbacks
-    url: ${conexao-de-sorte-database-r2dbc-url}/conexao_sorte_auth?useSSL=true&allowPublicKeyRetrieval=false&serverTimezone=America/Sao_Paulo
-    username: ${conexao-de-sorte-database-username}
-    password: ${conexao-de-sorte-database-password}
+    # Configuração com fallbacks seguros para desenvolvimento/teste
+    url: ${conexao-de-sorte-database-r2dbc-url:r2dbc:mysql://conexao-mysql:3306}/conexao_sorte_auth?useSSL=true&allowPublicKeyRetrieval=false&serverTimezone=America/Sao_Paulo
+    username: ${conexao-de-sorte-database-username:conexao_user}
+    password: ${conexao-de-sorte-database-password:conexao_password}
     pool:
       initial-size: 1  # Reduzido para startup mais rápido
       max-size: 10     # Reduzido para startup mais rápido
@@ -238,18 +238,18 @@ app:
 # Logging Configuration
 logging:
   level:
-    "[br.tec.facilitaservicos.autenticacao]": ${conexao-de-sorte-log-level}
-    "[org.springframework.security]": ${conexao-de-sorte-security-log-level}
-    "[org.springframework.r2dbc]": ${conexao-de-sorte-r2dbc-log-level}
-    "[io.r2dbc.mysql]": ${conexao-de-sorte-mysql-log-level}
-    "[com.azure]": ${conexao-de-sorte-azure-log-level}
+    "[br.tec.facilitaservicos.autenticacao]": ${conexao-de-sorte-log-level:INFO}
+    "[org.springframework.security]": ${conexao-de-sorte-security-log-level:WARN}
+    "[org.springframework.r2dbc]": ${conexao-de-sorte-r2dbc-log-level:WARN}
+    "[io.r2dbc.mysql]": ${conexao-de-sorte-mysql-log-level:WARN}
+    "[com.azure]": ${conexao-de-sorte-azure-log-level:WARN}
 
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level [%X{traceId:-},%X{spanId:-}] %logger{36} - %msg%n"
     file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level [%X{traceId:-},%X{spanId:-}] %logger{36} - %msg%n"
 
   file:
-    name: ${conexao-de-sorte-log-file}
+    name: ${conexao-de-sorte-log-file:/app/logs/autenticacao.log}
 
 # OpenAPI Documentation
 springdoc:

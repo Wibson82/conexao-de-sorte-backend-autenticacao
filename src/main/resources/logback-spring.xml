@@ -95,9 +95,6 @@
     <!-- Logger específico para auditoria do Key Vault -->
     <logger name="AUDIT.KEYVAULT" level="INFO" additivity="false">
         <appender-ref ref="KEYVAULT_AUDIT"/>
-        <springProfile name="!prod">
-            <appender-ref ref="CONSOLE"/>
-        </springProfile>
     </logger>
 
     <!-- Logger para métricas -->
@@ -136,10 +133,18 @@
         </root>
     </springProfile>
 
+    <!-- Configuração específica para desenvolvimento -->
+    <springProfile name="!prod">
+        <logger name="AUDIT.KEYVAULT" level="INFO" additivity="false">
+            <appender-ref ref="KEYVAULT_AUDIT"/>
+            <appender-ref ref="CONSOLE"/>
+        </logger>
+    </springProfile>
+
     <springProfile name="prod">
         <!-- Em produção, logs estruturados e otimizados -->
         <logger name="br.tec.facilitaservicos.autenticacao" level="INFO"/>
-        
+
         <!-- Desabilitar console em produção para performance -->
         <root level="INFO">
             <appender-ref ref="FILE"/>
