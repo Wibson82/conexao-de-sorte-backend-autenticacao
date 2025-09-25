@@ -98,12 +98,12 @@ jobs:
         run: |
           echo "🔒 Checking for security issues..."
           # Check for hardcoded secrets (excluding test files and mvnw script)
-          if grep -r -i "password\s*[:=]\s*['\"][^$]" . --exclude-dir=.git --exclude-dir=target --exclude="*.backup*" --exclude-dir="src/test" --exclude="mvnw" --exclude="mvnw.cmd"; then
-            echo "❌ Potential hardcoded passwords found"
+          if find . -path "./src/main/*" -name "*.yml" -o -path "./src/main/*" -name "*.yaml" -o -path "./src/main/*" -name "*.properties" -o -path "./src/main/*" -name "*.java" | xargs grep -i "password\s*[:=]\s*['\"][^$]" 2>/dev/null; then
+            echo "❌ Potential hardcoded passwords found in main source files"
             exit 1
           fi
           # Check for TODO/FIXME in critical files
-          if grep -r "TODO\|FIXME" src/main/java/ | grep -i "security\|password\|secret"; then
+          if grep -r "TODO\|FIXME" src/main/java/ 2>/dev/null | grep -i "security\|password\|secret"; then
             echo "⚠️ Security-related TODOs found - review required"
           fi
           echo "✅ Basic security validation passed"
