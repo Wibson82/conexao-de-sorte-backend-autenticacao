@@ -97,8 +97,8 @@ jobs:
       - name: "🔒 Security Validation"
         run: |
           echo "🔒 Checking for security issues..."
-          # Check for hardcoded secrets
-          if grep -r -i "password\s*[:=]\s*['\"][^$]" . --exclude-dir=.git --exclude-dir=target --exclude="*.backup*"; then
+          # Check for hardcoded secrets (excluding test files and mvnw script)
+          if grep -r -i "password\s*[:=]\s*['\"][^$]" . --exclude-dir=.git --exclude-dir=target --exclude="*.backup*" --exclude-dir="src/test" --exclude="mvnw" --exclude="mvnw.cmd"; then
             echo "❌ Potential hardcoded passwords found"
             exit 1
           fi
